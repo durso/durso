@@ -2,11 +2,11 @@
 
 namespace app\controller\base; 
 use app\view\view;
-//use app\model\db;
+use app\request;
 use app\model\file;
 use library\utils;
-use library\layout\elements\script;
 use library\layout\elements\element;
+use library\layout\elements\script;
 
 
 
@@ -23,8 +23,6 @@ class controller{
         $this->query = $query;
         $this->action = $action;
         $this->setView();
-        script::setAction($action);
-        script::setController($this->controller);
         $this->$action();
     }
     
@@ -37,38 +35,20 @@ class controller{
         return basename(str_replace('\\', '/', get_class($this)));
     }
     
-    
-    protected function addTemplate($template, $hasPath = false)
-    {
-        if(!$hasPath){
-            $file = TEMPLATE_PATH.DS.$template.".php";
-        } else {
-            $file = $template;
-        }
-        if (file::isReadable($file)) {
-            $this->render[] = $file;
-        } else {
-            $error = "Could not render the template: ".$file;
-            utils::log($error);
-            $this->errorMsg[] = "Could not render the template";
-            $this->view->assign("errors",$this->errorMsg);
-            $this->view->apologize = true;
-        }
-    }
-    
-    protected function addView() {
-        $file = VIEW_PATH . DS . $this->controller . DS . $this->action . '.php';  
-        $this->addTemplate($file,true);
-    }
+
     protected function html(element $element){
         $this->view->assign("script",script::getScript());
         $this->view->add($element);
-        $this->addView();
         $this->view->files($this->render);
         $this->view->render();
     }
 
-    
+    protected function error($error){
+        utils::log($error);    
+        $this->errorMsg[] = $error;
+        $this->view->assign("errors",$this->errorMsg);
+        $this->view->error = true;
+    }
     public function __toString(){
         return $this->getControllerName();
     }

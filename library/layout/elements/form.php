@@ -14,6 +14,7 @@ class form extends element{
         $this->attributes["method"] = $method;
         $this->tag = "form";
         $this->closeTag = true;
+        $this->setId("form");
     }
     
 }

@@ -14,7 +14,6 @@ class group extends element{
         $this->attributes["class"] = $className;
         $this->tag = $tag;
         $this->closeTag = true;
-        $this->setId("group");
     }
 
 

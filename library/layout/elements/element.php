@@ -6,21 +6,17 @@
  * @author durso
  */
 namespace library\layout\elements;
+use library\tree;
 use library\utils;
 use library\event\event;
 use library\layout\elements\script;
 
-abstract class element {
+abstract class element extends tree{
     /**
      *
      * @var array All attributes and properties given to an element
      */
     protected $attributes = array();
-    /**
-     *
-     * @var string element inner HTML
-     */
-    protected $value = "";
     /**
      *
      * @var string html tag
@@ -31,16 +27,6 @@ abstract class element {
      * @var boolean if element has a closing tag
      */
     protected $closeTag = false;
-    /**
-     *
-     * @var element list of children elements  
-     */
-    protected $children = null;
-    /**
-     *
-     * @var element parent element  
-     */
-    protected $parent = null;
     /*
      * 
      * @var string html to be rendered 
@@ -53,11 +39,6 @@ abstract class element {
     protected $events = array();
     /*
      * 
-     * @var boolean javascript response for the element 
-     */
-    protected $script = false;
-    /*
-     * 
      * Add CSS class to element
      * @param string $className CSS class name to be added to the element
      * @param string $context (optional) element that will be the context of the Ajax request
@@ -65,9 +46,17 @@ abstract class element {
      */
     public function addClassName($className,$context = "this"){
         $this->attributes["class"][] = $className;
-        if($this->script){
+        if(script::isActive()){
             script::addValue($className,$this->prepareContext($context),"addClass");
         }
+    }
+    /*
+     * 
+     * Check if element has class
+     * @return void
+     */
+    public function hasClass(){
+        return (isset($this->attributes["class"]) && !empty($this->attributes["class"]));
     }
     /*
      * 
@@ -92,7 +81,7 @@ abstract class element {
     protected function renderAttribute($string, $field,$context = "this"){
         if($string){
             return ' '.$field.'="'.$string.'"';
-            if($this->script){
+            if(script::isActive()){
                 script::addKeyValue($field,$string,$this->prepareContext($context),"attr");
             }   
         }
@@ -103,8 +92,10 @@ abstract class element {
      * @param string $element html tag
      * @return void
      */
-    protected function setId($element){
-        $this->attributes["id"] = $element."-".utils::randomGenerator(0);
+    public function setId($element,$seed = 0){
+        if(!$this->hasId()){
+            $this->attributes["id"] = $element."-".utils::randomGenerator($seed);
+        }
     }
     /*
      * 
@@ -116,7 +107,7 @@ abstract class element {
     }
     /*
      * 
-     * Get CSS id
+     * Check if element has id
      * @return void
      */
     public function hasId(){
@@ -124,7 +115,7 @@ abstract class element {
     }
     public function changeValue($value,$context="this",$method = "html"){
         $this->value = $value;
-        if($this->script){
+        if(script::isActive()){
             script::addValue($value,$context,$method);
         }
     }
@@ -135,53 +126,28 @@ abstract class element {
     public function hasCloseTag(){
         return $this->closeTag;
     }
-    /*
-     * 
-     * Check if element has children
-     * @return boolean
-     */
-    public function hasChildren(){
-        return !is_null($this->children);
+    public function getTag(){
+        return $this->tag;
     }
-    /*
-     * 
-     * Check if element has a parent
-     * @return boolean
-     */
-    public function hasParent(){
-        return !is_null($this->parent);
+    public function getUid(){
+        if($this->hasId()){
+            return "#".$this->getId();
+        }
+        return $this->buildSelector();
     }
      /*
      * 
      * Add a child to the element
      * @param element $child the object to be added as a child
      * @param string $context (optional) element that will be the context of the Ajax request
-     * @param string $method jQuery function to be used to add the child element (Ex: append, prepend)
+     * @param string $method (optional) jQuery function to be used to add the child element (Ex: append, prepend)
      * @return void
      */
     public function addChild(element $child, $context="this",$method = "append"){
-        $this->children[] = $child;
-        $child->setParent($this);
-        if($this->script){
+        parent::addChild($child);
+        if(script::isActive()){
             script::addValue($child,$this->prepareContext($context),$method);
         }
-    }
-     /*
-     * 
-     * Set the element parent
-     * @param element $parent
-     * @return void
-     */
-    public function setParent(element $parent){
-        $this->parent = $parent;
-    }
-     /*
-     * 
-     * Get the element parent
-     * @return element 
-     */
-    public function getParent(){
-       return $this->parent;
     }
      /*
      * 
@@ -190,11 +156,10 @@ abstract class element {
      * @param string $context (optional) element that will be the context of the Ajax request
      * @return void
      */
-    public function removeChild(element $child, $context = "this"){
-        $this->children = utils::array_remove($this->children,$this->child);
-        $child->setParent(null);
-        if($this->script){
-            script::addValue($this->prepareContext($child->getId(),true),$this->prepareContext($context),"remove");
+    public function removeChild(element $child){
+        parent::removeChild($child);
+        if(script::isActive()){
+            script::addValue("",$this->prepareContext($child->getUid()),"remove");
         }
     }
     /*
@@ -205,6 +170,7 @@ abstract class element {
      * @return void
      */
     public function bind($event, callable $callback){
+        $this->setId($this->tag);
         event::register($this,$event);
         $this->events[$event] = $callback; 
         script::event($this,"click");
@@ -217,43 +183,17 @@ abstract class element {
     public function getEvent($event){
         return $this->events[$event];
     }
-    /* 
-     * Return script value
-     * @return boolean 
-     */
-    public function getScript(){
-        return $this->script;
-    }
-    /*
-     * Sets script value
-     * @param boolean
-     * @return void
-     * 
-     */
-    public function setScript($boolean){
-        $this->script = $boolean;
-    }
     /*
      * Prepares the string that will be the context of the Ajax request
      * @param string $context
      * @return string
      */
-    protected function prepareContext($context, $id = false){
-        if($id){
-            return "'#$context'";
-        }
-        if($context != "this"){
-            if($context == $this->attributes["id"]){
-                return "'#".$this->attributes["id"]."'";
-            } else {
-                return "'.$context'";
-            }
+    protected function prepareContext($context){
+        if($context != 'this'){
+            return "'$context'";
         }
         return $context;
     }
-    
- 
-
     /*
      * 
      * Render element to html
@@ -281,7 +221,30 @@ abstract class element {
         $this->html .= "</".$this->tag.">";
         return $this->html;
     }
-    
+    protected function buildSelector(){
+        $selector = "";
+        $list = $this->searchAncestorsProperty("hasId");
+        foreach($list as $element){
+            if($element->hasId()){
+                $selector .= "#".$element->getId(); 
+            } else {
+                $selector .= " > ".$element->getTag();
+                $selector .= $element->nthChild();
+            }
+        }
+        $selector .= " > ".$this->getTag()."";
+        $selector .= $this->nthChild();
+        return $selector;
+    }
+    public function nthChild(){
+        $selector = "";
+        if($this->hasSiblings()){
+            $index = $this->getSiblingsIndex();
+            $index++;
+            $selector .= ":nth-child($index)";
+        }
+        return $selector;
+    }
 
    //abstract public function addListener();
    //abstract public function removeListener();

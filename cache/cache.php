@@ -3,6 +3,7 @@
 namespace cache;
 use app\model\file;
 use library\utils;
+use app\response;
 
 class cache{
     private $controller;
@@ -45,10 +46,10 @@ class cache{
     }
     public function getCache(){
         if($this->hasBuffer){   
-            utils::clearBuffer();
+            response::clearBuffer();
             echo $this->buffer;
         } else {
-            utils::endFlush();
+            response::endFlush();
         }
     }
     public function setExtension($ext){

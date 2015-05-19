@@ -6,14 +6,21 @@
  */
 namespace library\layout\elements;
 use library\layout\elements\element;
+use app\request;
+
 
 
 class script {
-    private static $controller;
-    private static $action;
     private static $script = "";
     private static $response = array();
+    private static $startScript = false;
     
+    public static function start(){
+        self::$startScript = true;
+    }
+    public static function isActive(){
+        return self::$startScript;
+    }
     public static function setController($controller){
         self::$controller = $controller;
     }
@@ -22,17 +29,17 @@ class script {
     }
   
     public static function event(element $element,$event){
-        self::bind($event,$element->getId());
+        self::bind($event,$element->getUid());
 
     }
-    private static function bind($event,$id){
+    private static function bind($event,$uid){
         if($event == 'click'){
-            self::$script = "jQuery('#$id').$event(function(){%s});";
-            self::$script = self::ajax($event);
+            self::$script = "jQuery('$uid').$event(function(){%s});";
+            self::$script = self::ajax($event,$uid);
         }
     }
-    private static function ajax($event){
-        $request = "jQuery.ajax({url:'/".self::$controller."/".self::$action."',data:{event:'$event'},dataType:'json',context:this})";    
+    private static function ajax($event,$uid){
+        $request = "jQuery.ajax({url:'/".request::$uri["controller"]."/".request::$uri["action"]."',data:{event:'$event',uid:'$uid'},dataType:'json',context:this})";    
         $done = ".done(function(result){%s});";
         $callback = "var self = this;"
                 . "jQuery.each(result,function(i,item){"

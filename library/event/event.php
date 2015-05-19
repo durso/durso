@@ -13,11 +13,11 @@ class event {
     private static $events = array();
     private static $eventList = array("click");
     
-    public static function trigger($id,$event, $args = array())
+    public static function trigger($uid,$event, $args = array())
     {
-        if(isset(self::$events[$id][$event]))
+        if(isset(self::$events[$uid][$event]))
         {
-            foreach(self::$events[$id][$event] as $callback)
+            foreach(self::$events[$uid][$event] as $callback)
             {
                 $callback->$event($callback);
             }
@@ -27,7 +27,7 @@ class event {
     public static function register(element $element, $event){
         try{
             if(self::isEvent($event)){
-                self::$events[$element->getId()][$event][] = $element;
+                self::$events[$element->getUid()][$event][] = $element;
             } else{
                 throw new \Exception("Event not supported");
             }

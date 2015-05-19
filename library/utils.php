@@ -34,15 +34,7 @@ class utils{
             }
         }
     }
-    public static function flush(){
-        ob_flush();
-    }
-    public static function endFlush() {
-        ob_end_flush();
-    }
-    public static function clearBuffer(){
-        ob_end_clean();
-    }
+    
     public static function array_remove($array,$value){
         foreach ($array as $key => $element) {
             if ($element == $value) {
@@ -51,5 +43,12 @@ class utils{
         }
         $array = array_values($array);
         return $array;
+    }
+    public static function runMethods($className){
+        $class = new $className;
+        $methods = get_class_methods($class);
+        foreach($methods as $method){
+            $class->$method();
+        }
     }
 }

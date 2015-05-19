@@ -3,6 +3,7 @@
 namespace app\controller;
 use app\controller\base\controller as baseController, cache\cache, app\request;
 use library\utils;
+use library\layout\template;
 use library\layout\elements\element;
 use library\layout\elements\button;
 use library\layout\elements\form;
@@ -33,27 +34,32 @@ class index extends baseController{
         }
         $cache->getCache();
        */
+        $template = new template("index/index");
         $form = new form("index.php");
         $group = new group();
         $input = new input("text","Hello world","Escreva:");
         $group2 = new group();
+        
         $button = new button("Click me","button");
+        
+        $group->addChild($input);
+        $group2->addChild($button);
+        
+        $form->addChild($template->getTemplate());
+        $form->addChild($group);
+        $form->addChild($group2);
+        
         $button->bind('click', function($button){
-            $button->setScript(true);
+            script::start();
             $button->addClassName("red");
             $button->changeValue("Clicked");
             $group2 = $button->getParent();
-            $group2->setScript(true);
             $button2 = new button('Botao2','button');
-            $group2->addChild($button2,$group2->getId(),"prepend");
+            $group2->addChild($button2,$group2->getUid(),"prepend");
         });
-        $group->addChild($input);
-        $group2->addChild($button);
-        $form->addChild($group);
-        $form->addChild($group2);
-            
+        
         if(request::isAjax()){
-            event::trigger($button->getId(), $this->query["event"]);
+            event::trigger($this->query["uid"], $this->query["event"]);
             echo script::getResponse();
             exit;
         } else {

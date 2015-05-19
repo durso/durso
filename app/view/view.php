@@ -10,11 +10,9 @@ private $files = array();
 
 private $error = false;
 
-private $render;
+private $render = array();
 
 private $elements;
-
-protected $apologize = false;
 
 
 public function files(array $files){
@@ -41,12 +39,9 @@ public function render()
 {
     extract($this->data);
     require(TEMPLATE_PATH.DS."head.php");
-    if($this->apologize){
-        require(VIEW_PATH . DS . "apologize" . DS . "index.php");
+    if($this->error){
+        require(VIEW_PATH . DS . "error.php");
     }else {
-        foreach($this->render as $render){
-            require($render);
-        }
         $this->renderElements();
     }
     require(TEMPLATE_PATH.DS."footer.php");
