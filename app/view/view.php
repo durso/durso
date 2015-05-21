@@ -10,14 +10,9 @@ private $files = array();
 
 private $error = false;
 
-private $render = array();
 
 private $elements;
 
-
-public function files(array $files){
-    $this->render = $files;    
-}
 
 public function assign($variable, $value)
 {

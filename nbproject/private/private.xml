@@ -3,15 +3,13 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-            <file>file:/home/durso/NetBeansProjects/localhost/app/request.php</file>
-            <file>file:/home/durso/NetBeansProjects/localhost/library/layout/elements/script.php</file>
-            <file>file:/home/durso/NetBeansProjects/localhost/app/bootstrap.php</file>
-            <file>file:/home/durso/NetBeansProjects/localhost/library/event/event.php</file>
+            <file>file:/home/durso/NetBeansProjects/localhost/app/view/index/index.php</file>
+            <file>file:/home/durso/NetBeansProjects/localhost/library/layout/components/template.php</file>
             <file>file:/home/durso/NetBeansProjects/localhost/library/tree.php</file>
+            <file>file:/home/durso/NetBeansProjects/localhost/library/layout/components/component.php</file>
             <file>file:/home/durso/NetBeansProjects/localhost/app/router.php</file>
             <file>file:/home/durso/NetBeansProjects/localhost/library/utils.php</file>
             <file>file:/home/durso/NetBeansProjects/localhost/library/filter.php</file>
-            <file>file:/home/durso/NetBeansProjects/localhost/app/init.php</file>
             <file>file:/home/durso/NetBeansProjects/localhost/library/layout/elements/element.php</file>
             <file>file:/home/durso/NetBeansProjects/localhost/app/controller/index.php</file>
         </group>

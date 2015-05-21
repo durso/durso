@@ -14,6 +14,7 @@ class script {
     private static $script = "";
     private static $response = array();
     private static $startScript = false;
+    private static $listScript = array();
     
     public static function start(){
         self::$startScript = true;
@@ -21,41 +22,28 @@ class script {
     public static function isActive(){
         return self::$startScript;
     }
-    public static function setController($controller){
-        self::$controller = $controller;
-    }
-    public static function setAction($action){
-        self::$action = $action;
-    }
+
   
     public static function event(element $element,$event){
-        self::bind($event,$element->getUid());
-
-    }
-    private static function bind($event,$uid){
-        if($event == 'click'){
-            self::$script = "jQuery('$uid').$event(function(){%s});";
-            self::$script = self::ajax($event,$uid);
+        if(!array_key_exists($event, self::$listScript)){
+            self::bind($event);
         }
     }
-    private static function ajax($event,$uid){
-        $request = "jQuery.ajax({url:'/".request::$uri["controller"]."/".request::$uri["action"]."',data:{event:'$event',uid:'$uid'},dataType:'json',context:this})";    
+
+    private static function bind($event){
+        if($event == 'click'){
+            self::$script = "jQuery('.click').$event(function(){%s});";
+            self::$script = self::ajax($event);
+            self::$listScript[$event] = self::$script;
+        }
+    }
+    private static function ajax($event){
+        $request = "var id = '#'+jQuery(this).attr('id');"
+                .   "jQuery.ajax({url:'/".request::$uri["controller"]."/".request::$uri["action"]."',data:{event:'$event',uid:id},dataType:'json',context:this})";    
         $done = ".done(function(result){%s});";
         $callback = "var self = this;"
                 . "jQuery.each(result,function(i,item){"
-                .   "if(item.context != \"this\"){"
-                .       "if('key' in item){"
-                .           "eval(sprintf(\"jQuery(%s).%s('%s','%s');\",item.context,item.method,item.key,item.value));"
-                .       "}else{"
-                .           "eval(sprintf(\"jQuery(%s).%s('%s');\",item.context,item.method,item.value));"
-                .       "}"
-                .   "} else {"
-                .       "if('key' in item){"
-                .           "eval(\"jQuery(self)\"+sprintf(\".%s('%s','%s');\",item.method,item.key,item.value));"
-                .       "}else{"
-                .           "eval(\"jQuery(self)\"+sprintf(\".%s('%s');\",item.method,item.value));"
-                .       "}"
-                .   "}"
+                .       "runResponse(item,i,self);" 
                 . "});";
         $done = sprintf($done,$callback);
         $ajax = $request.$done;
@@ -69,7 +57,12 @@ class script {
         self::$response[] = array("context" => $context,"method" => $method,"key" =>$key, "value" => $value);
     }
     public static function getScript(){
-        return "<script>jQuery(document).ready(function(){".self::$script." });</script>";
+        $jquery = "<script>jQuery(document).ready(function(){";
+        foreach(self::$listScript as $script){
+            $jquery .= $script;
+        }
+        $jquery .= " });</script>";
+        return $jquery;
     }
     public static function getResponse(){
         return json_encode(self::$response);

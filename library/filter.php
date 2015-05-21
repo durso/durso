@@ -8,18 +8,18 @@ namespace library;
 
 class filter {
     const ALL = "([^/]+)";
-    const ALNUM = "([\d\w-]+)"; 
+    const ALNUM = "([\w-]+)"; 
     const ALPHA = "([a-zA-Z]+)"; 
     const INT = "([\d]+)";
     const STRING = "([\w-]+)";
-    const ID = "(#[\d\w-]+)";
-    const PATH = "([\d\w-\/]+)";
+    const ID = "#([\w-]+)";
+    const PATH = "([\w-\/]+)";
     
     public static function validate($string, $pattern){
         return preg_match($pattern, $string);
     }
 
-    public static function getRegex($pattern){
+    public static function getRegex($pattern, $final = false){
         $regex;
         switch (strtolower($pattern)) { 
             case "int":     $regex = self::INT;                         
@@ -34,6 +34,9 @@ class filter {
                             break;            
             default:        $regex = self::STRING;
                             break;               
+        }
+        if($final){
+            return "/".$regex."/";
         }
         return $regex;    
     }

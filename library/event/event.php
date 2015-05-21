@@ -8,6 +8,7 @@
 
 namespace library\event;
 use library\layout\elements\element;
+use library\layout\elements\script;
 
 class event {
     private static $events = array();
@@ -17,6 +18,7 @@ class event {
     {
         if(isset(self::$events[$uid][$event]))
         {
+            script::start();
             foreach(self::$events[$uid][$event] as $callback)
             {
                 $callback->$event($callback);

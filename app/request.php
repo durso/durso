@@ -42,12 +42,12 @@ class request {
         }
         if(self::isAjax()){
             if(isset(self::$params["uid"])){
-                if(!filter::validate(self::$params["uid"],filter::getRegex("id"))){
+                if(!filter::validate(self::$params["uid"],filter::getRegex("id",true))){
                    throw new \Exception("UID: Invalid string format");
                 }
             }
             if(isset(self::$params["event"])){
-                if(!filter::validate(self::$params["event"],filter::getRegex("alpha"))){
+                if(!filter::validate(self::$params["event"],filter::getRegex("alpha",true))){
                     throw new \Exception("Event: Invalid string format");
                 }
             }
@@ -55,7 +55,7 @@ class request {
     }
     
     protected static function setPath(){
-        preg_match(filter::getRegex("path"),$_SERVER["REQUEST_URI"],$matches);
+        preg_match(filter::getRegex("path",true),$_SERVER["REQUEST_URI"],$matches);
         self::$path = $matches[0];
     }
     
@@ -115,7 +115,7 @@ class request {
     public static function hasError(){
         return !is_null(self::$errorMsg);
     }
-    public function errorMsg(){
+    public static function errorMsg(){
         return self::$errorMsg;
     }
     

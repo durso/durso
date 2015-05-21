@@ -5,13 +5,13 @@
  *
  * @author durso
  */
-class layout {
-    protected $tag;
-    protected $attributes = array();
-    protected $elements = array();
-    protected $components = array();
-    
+namespace library\layout;
+use library\layout\elements\element;
+
+class layout extends element{
+    private $container;
     public function __construct(){
         $this->tag = "body";
+        $this->closeTag = true;
     }
 }

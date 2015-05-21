@@ -187,3 +187,41 @@ function sprintf() {
 
   return format.replace(regex, doFormat);
 }
+
+function runResponse(item,i,self){
+    if(item.context != "this"){
+        if('key' in item){
+            eval(sprintf("jQuery(%s).%s('%s','%s');",item.context,item.method,item.key,item.value));
+        }else{
+            eval(sprintf("jQuery(%s).%s('%s');",item.context,item.method,item.value));
+        }
+    } else {
+        if('key' in item){
+            eval("jQuery(self)"+sprintf(".%s('%s','%s');",item.method,item.key,item.value));
+        }else{
+            eval("jQuery(self)"+sprintf(".%s('%s');",item.method,item.value));
+        }
+    }
+}
+jQuery.fn.extend({
+    getText: function () {
+        return $(this).contents().filter(function () {
+                    return this.nodeType === 3; 
+                });
+    }
+});
+jQuery.fn.extend({
+    removeText: function () {
+        $(this).getText().remove();
+    }
+});
+jQuery.fn.extend({
+    changeText: function (text) {
+        var id = $(this).attr('id');
+        var node = document.getElementById(id).childNodes[0];
+        if(typeof node !== 'undefined'){
+            node.nodeValue = text;
+        }
+    }
+});
+
