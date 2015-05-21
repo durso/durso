@@ -1,3 +1,3 @@
 <p> Hello World </p>
-<div> Este eh um teste padrao e nao necessariamente vai funcionar </div>
+<div> Este eh um teste padrao</div>
 <div location="carro"></div>
