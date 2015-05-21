@@ -19,7 +19,7 @@ class index extends controller{
 
     public function index(){
         //Creates a new div element
-        $container = new block("",array("container","theme-showcase"));
+        $container = new group(array("container","theme-showcase"));
         //Creates a new button element
         $button3 = new button("Don't Click me","button");
         //Sets the id of the element
