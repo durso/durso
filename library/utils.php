@@ -2,42 +2,28 @@
 namespace library;
 use app\model\file;
 
+
 class utils{
     private static $seed = null;
     private static $uniqueRand = array();
     
     public static function log($msg,$file = "error_log.txt"){
-        file::append($file,$msg);   
+        file::append($file,$msg."\n");   
     }
-    public static function randomGenerator($seed, $unique = true, $min = 1, $max = 99999, $attempt = 100){
+    public static function randomGenerator($min = 1, $max = 9999999){
+
         if(self::$seed == null){
-            mt_srand($seed);
-            self::$seed = $seed;
+            self::$seed = time();
+            mt_srand(self::$seed);      
         }
-        if($unique){
-            return self::getUniqueNumber($min, $max, $attempt);
-        } else {
-            return mt_rand($min,$max);
-        }
+
+        return mt_rand($min,$max);
     }
-    private static function getUniqueNumber($min,$max,$attempt){
-        $i = 0;
-        while(true){
-            $rand = mt_rand($min,$max);
-            if(!in_array($rand,self::$uniqueRand)){
-                self::$uniqueRand[] = $rand;
-                return $rand;
-            }
-            $i++;
-            if($i >= $attempt){
-                throw new \Exception("Could not generate unique number");
-            }
-        }
-    }
+
     
     public static function array_remove($array,$value){
         foreach ($array as $key => $element) {
-            if ($element == $value) {
+            if ($element === $value) {
                 unset($array[$key]);
             }
         }
@@ -51,4 +37,5 @@ class utils{
             $class->$method();
         }
     }
+    
 }

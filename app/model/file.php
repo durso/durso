@@ -44,4 +44,49 @@ class file {
     public static function lastModified($file){
         return filemtime($file);
     }
+    public static function readCSV($file){
+        return array_map('str_getcsv', file($file));
+    }
+    public static function opendir($dir){
+        if(is_dir($dir)) {
+            if ($dh = opendir($dir)) {
+                
+                return $dh;
+            }
+            
+        }
+        return false;
+    }
+    public static function scandir($dir,$filesOnly = true){
+        $files = array();
+        $dh = self::opendir($dir);
+        if($dh){
+            while (($file = readdir($dh)) !== false) {
+                if($filesOnly){
+                    if(filetype($dir.$file) == 'file'){
+                        $files[] = $file;
+                    }
+                } else {
+                    $files[] = $file;
+                }
+            }
+            closedir($dh);
+            return $files;
+        }
+        return false;
+    }
+    public static function getFiles($dir,$fileType){
+        $files = self::scandir($dir);
+        $list = array();
+        if($files){
+            foreach($files as $file){
+                $ext = pathinfo($dir.$file, PATHINFO_EXTENSION);
+                if($ext == $fileType){
+                    $list[] = $file;
+                }
+            }
+            return $list;
+        }
+        return false;
+    }
 }

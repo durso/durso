@@ -8,10 +8,11 @@
 namespace app;
 use app\router;
 use library\filter;
+use app\controller\apologize;
 
 class request {
     public static $method;
-    public static $params;
+    public static $params = array();
     public static $uri = array();
     protected static $url;
     protected static $path;
@@ -33,12 +34,13 @@ class request {
         
     }
     protected static function setParams(){
+        $params = array();
         switch(self::$method) {  
-            case 'GET':    self::$params = $_GET;
+            case 'GET':    $params = $_GET;
                            break;  
-            case 'POST':   self::$params = $_POST;
+            case 'POST':   $params = $_POST;
                            break;
-            default:       self::$params = array();
+            default:       $params = array();
         }
         if(self::isAjax()){
             if(isset(self::$params["uid"])){
@@ -77,9 +79,12 @@ class request {
             }
             $i++;
         }
+        if(router::hasMatch()){
+            self::$uri = array_merge(self::$uri,router::getMatch());
+        }
     }
     protected static function setController($pathList){
-        if(router::hasMatch(self::$path)){
+        if(router::checkMatch(self::$path)){
            self::$uri["controller"] = router::getController();
         } else {
             self::$uri["controller"] = $pathList[0];
@@ -88,7 +93,7 @@ class request {
         return $pathList;
     }
     protected static function setAction($pathList){
-        if(router::$match){
+        if(router::hasMatch()){
            self::$uri["action"] = router::getAction();
         } else {
             if(count($pathList)){
@@ -117,6 +122,13 @@ class request {
     }
     public static function errorMsg(){
         return self::$errorMsg;
+    }
+    public static function isPost(){
+        return self::$method == 'POST';
+    }
+    public static function redirectError($error){
+        self::error($error);
+        return new apologize(self::$uri["action"], self::$uri,$error);
     }
     
 }

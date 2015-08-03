@@ -17,4 +17,7 @@ class response {
     public static function clearBuffer(){
         ob_end_clean();
     }
+    public static function json(){
+        header('Content-Type: application/json');
+    }
 }
