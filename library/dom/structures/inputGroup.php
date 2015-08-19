@@ -8,6 +8,9 @@ use library\dom\elements\components\inline;
 
 
 class inputGroup extends components{
+    private $input;
+
+    
     public function __construct($class = 'input-group'){
         parent::__construct("div");
         $this->root->addClass($class);
@@ -27,35 +30,38 @@ class inputGroup extends components{
     }
     
     private function text($name,$text,$position){
-        $input = new input($name,"text");
-        $input->addClass('form-control');
+        $this->input = new input($name,"text");
+        $this->input->addClass('form-control');
         $list = array();
         if(is_array($text)){
             assert(count($text) == 2);
             $span1 = $this->span($text[0]);
             $span2 = $this->span($text[1]);
-            $list = array($span1,$input,$span2);
+            $list = array($span1,$this->input,$span2);
+            $this->components["span"][] = $span1;
+            $this->components["span"][] = $span2;
         } else {
             $span = $this->span($text);
             $span->setId("span");
             $input->attr('aria-describedby',$span->getId());
-            $list = array($span,$input);
+            $list = array($span,$this->input);
             if($position == 'right'){
                 $list = array_reverse($list);
             } 
-            $this->components["input"] = $input;
-            $this->components["span"] = $span;
+            $this->components["input"][] = $this->input;
+            $this->components["span"][] = $span;
         }
         foreach($list as $item){
             $this->root->addComponent($item);
         }
-        return $input;
+        return $this->input;
     }
     private function span($text){
         $span = new inline("span",$text);
         $span->addClass('input-group-addon');
         return $span;
     }
+    
     public function createCheckBox(){
         assert(!isset($this->components["input"]));
     }

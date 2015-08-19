@@ -16,7 +16,7 @@ use library\mediator\nodeElement;
 
 abstract class element extends object{
     
-    private $listener = array();
+    protected $listener = array();
     /**
      *
      * @var array All attributes and properties given to an element
@@ -34,14 +34,22 @@ abstract class element extends object{
      * @return void
      */
     public function addClass($className){
-        if(!array_key_exists("class", $this->attributes)){
-            $this->attributes["class"] = array();
-        }
-        if(!in_array($className,$this->attributes["class"])){
-            $this->attributes["class"][] = $className;
-        }
-        if($this->isRendered){
-            $this->updateJS('addClass',$className);
+        if(strpos($className," ") !== false){
+            $class = explode(" ",$className);
+            foreach($class as $item){
+                $this->addClass($item);
+            }
+        } else {
+            if(!array_key_exists("class", $this->attributes)){
+                $this->attributes["class"] = array();
+            }
+            if(!in_array($className,$this->attributes["class"])){
+                $this->attributes["class"][] = $className;
+            }
+            if($this->isRendered){
+                $this->updateJS('addClass',$className);
+
+            }
         }
     }
     /*
@@ -80,7 +88,7 @@ abstract class element extends object{
      * @return void
      */
     public function attr($attribute,$value = false){
-        if(!$value){
+        if($value === false){
             if(isset($this->attribute[$attribute])){
                 return $this->attribute[$attribute];
             }
@@ -117,7 +125,7 @@ abstract class element extends object{
         if(is_array($value) && !empty($value)){
            return $attribute.implode(" ",array_unique($value)).'"';
         } else {
-            if($value){
+            if($value != ""){
                 return $attribute.$value.'"';
             }
         }
@@ -169,6 +177,7 @@ abstract class element extends object{
             $this->html .= $this->renderAttributes($value, $key);
         }
         $this->html .= ">";
+        return $this->html;
     }
     /*
      * 
@@ -184,6 +193,29 @@ abstract class element extends object{
         
     }
     
+    public function stringToAttr($string){     
+        //replace with preg_split #\s?[\w]+(="[\s\w-:.&\?/]+"\s?|\s?)#
+        $list = array();
+        preg_match_all('#\s?[\w-]+(="[^<>"]+"\s?|\s?)#', $string,$list);
+        $list = $list[0];
+        foreach($list as $item){
+            $item = trim($item);
+            if($item == "/"){
+                continue;
+            }
+            if(strpos($item,"=") === false){
+                $this->attr($item,true);
+            }  else {
+                $attr = explode("=",$item,2);
+                $value = str_replace('"','',$attr[1]);
+                if($attr[0] == 'class'){
+                    $this->addClass($value);
+                } else {
+                    $this->attr($attr[0],$value);
+                }
+            }
+        }
+    }
 
     /*
      * 
@@ -216,7 +248,7 @@ abstract class element extends object{
         } elseif($selector[0] == '#'){
             return $this->attributes['id'] == $selector;
         } elseif($selector[0] == '.'){
-            return $this->hasClass($selector);
+            return $this->hasClass(substr($selector,1));
         } else {
             return $this->tag == $selector;
         }
@@ -266,7 +298,14 @@ abstract class element extends object{
             $this->$method = $function;
         }
     }
-    
+
+    public function __sleep(){
+        $array = array('attributes','tag','isRendered');
+        if(!empty($this->listener)){
+            $array[] = 'listener';
+        }
+        return $array;
+    }
 
     
 }

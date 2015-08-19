@@ -12,12 +12,14 @@ use library\dom\elements\components\option;
 class select extends paired{
     private $options;
     
-    public function __construct($name,$multiple = false, $className = "form-control") {
+    public function __construct($name = false,$multiple = false, $className = "form-control") {
         parent::__construct();
         if($multiple){
             $this->attributes["multiple"] = true;
         }
-        $this->attributes["name"] = $name;
+        if($name){
+            $this->attributes["name"] = $name;
+        }
         $this->attributes["class"][] = $className;
         $this->tag = "select";
         $this->setId($this->tag);

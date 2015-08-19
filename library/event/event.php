@@ -13,7 +13,7 @@ use app\request;
 class event {
     private $type;
     private $source;
-    private static $eventList = array("click","submit");
+    private static $eventList = array("click","submit","location");
     
     public function __construct($type,$source){
         assert(request::isAjax());

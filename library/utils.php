@@ -19,6 +19,10 @@ class utils{
 
         return mt_rand($min,$max);
     }
+    
+    public static function isUrl($url){
+        return filter_var($url, FILTER_VALIDATE_URL);
+    }
 
     
     public static function array_remove($array,$value){

@@ -18,14 +18,25 @@ class intext extends paired{
             $this->setText($value);
         }
     }
-    public function changeText($value){
-        assert(!is_null($this->text));
-        $this->text->setValue($value);
+    public function changeText($value,$index = true){
+        if($index === true){
+            assert(!is_null($this->text));
+            $index = $this->indexOf($this->text);
+        }
+        parent::changeText($value,$index);
+    }
+    public function appendText($value,$index = true){
+        if($index === true){
+            assert(!is_null($this->text));
+            $index = $this->indexOf($this->text);
+        }
+        parent::appendText($value,$index);
     }
     public function setText($value){
         assert(is_null($this->text));
         $this->text = new text($value);
         $this->addComponent($this->text);
     }
+    
 
 }

@@ -23,15 +23,15 @@ class javascript{
     public static function isActive(){
         return !is_null(self::$context);
     }
-    public static function update(object $component,$method,$value,$key){
-        if(self::$context == $component){
+    public static function update(object $component,$method,$value = false,$key = false){
+        if(self::$context === $component){
             $context = 'this';
         } else {
             $context = $component->getUid();
         }
         if(!$value && !$key){
             self::addMethod($context,$method);
-        } elseif($value && !$key){
+        } elseif($value && $key === false){
             self::addValue($value, $context, $method);
         } else {
             self::addKeyValue($key, $value, $context, $method);

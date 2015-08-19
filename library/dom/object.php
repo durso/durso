@@ -6,6 +6,7 @@
  * @author durso
  */
 namespace library\dom;
+use library\tree\node;
 use library\tree\nodeFactory;
 use library\dom\javascript;
 use library\mediator\nodeElement;
@@ -34,6 +35,9 @@ abstract class object {
     public function getNode(){
         return $this->node;
     }
+    public function setNode(node $node){
+        $this->node = $node;
+    }
     public function getParent(){
         if($this->node->hasParent()){
             return $this->node->getParent()->getValue();
@@ -45,7 +49,9 @@ abstract class object {
     public function parents($selector = false){
         return nodeElement::parents($this,$selector);
     }
-    
+    public function siblingsIndex(){
+        return nodeElement::siblingsIndex($this);
+    }
 
     /*
      * 
@@ -77,5 +83,6 @@ abstract class object {
     public function __toString() {
         return $this->render();
     }
+
     
 }

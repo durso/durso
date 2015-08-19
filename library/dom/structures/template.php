@@ -14,53 +14,91 @@
  */
 namespace library\dom\structures;
 use library\dom\structures\components;
-use library\dom\elements\components\text;
 use library\dom\elements\components\elementFactory;
-use library\dom\object;
+use library\dom\elements\element;
+use library\dom\elements\paired;
 use app\model\file;
 
 
 class template extends components{
-    
+    private $collection;
          
-    public function __construct($file,$wrapper = "div") {
-        $path = TEMPLATE_PATH.DS.$file.".php"; 
-        $string = file::read($path);
-        if($string){
+    public function __construct($wrapper = false) {
+        if($wrapper){
             $this->root = elementFactory::createByTag($wrapper);
-        } else {
-            throw new \Exception("Could not create template from file.");
-        }
-        $pattern = '#(<replace location="\w+"><\/replace>)#';
-        $this->components = preg_split($pattern,$string,-1,PREG_SPLIT_DELIM_CAPTURE);    
+        }    
     }
  
-    public function addComponent(object $component,$location) {
-        $flag = false;
-        $id = 'location="'.$location.'"';
-        foreach($this->components as $key => $child){
-            if(strpos($child,$id) !== false){
-                $this->components[$key] = $component;
-                $flag = true;
-                break;
-            }
+    public function create($file,$offsetTag = false){
+        $string = file::read($file);
+        if($string === false){
+            throw new \Exception("Could not open file");
         }
-        if(!$flag){
-            throw new \Exception("Could not add element to the template: $component");
-        }
-        
-    }
-    public final function save(){
-        foreach($this->components as $child){
-            if($child instanceof object){
-                $this->root->addComponent($child);
-            } else {
-                $this->root->addComponent(new text($child));
+        $pattern = '#(<[^!>]*[^\/][/]*>)#';
+        $components = preg_split($pattern,$string,-1,PREG_SPLIT_DELIM_CAPTURE);
+        $list = array();
+        $offset = false;
+        foreach($components as $key => $value){
+            $value = trim($value);
+            $len = strlen($value);
+            if(!$len){
+                continue;
             }
             
+            if($value[0] == "<" && $value[1] != "!"){
+                if($value[1] != "/"){
+                    $pos = strpos($value, " ");
+                    if($pos){
+                        $tag = substr($value,1,$pos - 1);
+                    } else {
+                        $tag = substr($value,1,-1);
+                    }
+                    if($tag == 'html'){
+                        continue;
+                    }
+                    if($offsetTag && !$offset){
+                        if($offsetTag == $tag){
+                            $offset = true;
+                        } else {
+                            continue;
+                        }
+                    }
+                    $element = elementFactory::createByTag($tag);
+                } else {
+                    array_pop($list);
+                    continue;
+                }
+            } else {
+                $element = elementFactory::createText($value);
+            }
+            if(empty($list)){      
+                if(is_null($this->root)){
+                    $this->collection[] = $element;
+                } else {
+                    $this->root->addComponent($element);
+                }
+            } else {
+                $parent = end($list);
+                reset($list);
+                $parent->addComponent($element);
+            }
+            if($element instanceof paired){
+                $list[] = $element;
+            }
+            if($element instanceof element){
+                if($pos){
+                    $attr = substr($value,$pos,-1);
+                    $element->stringToAttr($attr);
+                }
+            }
+        }
+    }
+
+    public final function save(){
+        if(is_null($this->root)){     
+            return $this->collection;
         }
         return $this->root;    
-        
     }
 
 

@@ -6,7 +6,9 @@
  * @author durso
  */
 namespace library\dom\structures;
-use library\dom\object, library\dom\elements\components\elementFactory;
+use library\dom\object;
+use library\dom\elements\components\elementFactory;
+use library\dom\elements\elementCollection;
 
 
 abstract class components{
@@ -15,6 +17,7 @@ abstract class components{
 
     public function __construct($tag){
         $this->root = elementFactory::createByTag($tag);
+        $this->tracker($this->root);
     }
     public function addComponent(object $component){
         $this->root->addComponent($component);
@@ -27,8 +30,14 @@ abstract class components{
     }
     public function getComponentByTagName($tag){
         if(isset($this->components[$tag])){
-            return $this->components[$tag];
+            if(count($this->components[$tag]) == 1){
+                return $this->components[$tag][0];
+            }
+            $collection = new elementCollection();
+            $collection->addElements($this->components[$tag]);
+            return $collection;
         }
     }
+
 }
 

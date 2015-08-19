@@ -117,14 +117,15 @@ jQuery.fn.extend({
     }
 
 });
-
+function getChildNode(jq,key){
+    var elem = jq[0];
+    return elem.childNodes[key];
+}
 jQuery.fn.extend({
 
-    changeText: function (text) {
+    changeText: function (text, key) {
 
-        var id = jQuery(this).attr('id');
-
-        var node = document.getElementById(id).childNodes[0];
+        var node = getChildNode(jQuery(this),key);
 
         if(typeof node !== 'undefined'){
 
@@ -135,6 +136,25 @@ jQuery.fn.extend({
     }
 
 });
+
+jQuery.fn.extend({
+
+    appendText: function (text, key) {
+
+        var node = getChildNode(jQuery(this),key);
+
+        if(typeof node !== 'undefined'){
+            var tmp = node.nodeValue;
+            tmp += text;
+            node.nodeValue = tmp;
+        }
+
+    }
+
+});
+
+
+
 
 
 
@@ -165,15 +185,36 @@ var append = function(element,item){
 
 }
 
+var fadeIn = function(element,item){
+
+    jQuery(item.value).appendTo(element).fadeIn();
+
+}
+
 var changeText = function(element,item){
 
-    jQuery(element).changeText(item.value);
+    jQuery(element).changeText(item.value, item.key);
+
+}
+
+var appendText = function(element,item){
+
+    jQuery(element).appendText(item.value, item.key);
 
 }
 
 var removeClass = function(element,item){
 
     jQuery(element).removeClass(item.value);
+
+}
+var remove = function(element,item){
+
+    jQuery(element).remove();
+
+}
+var clear = function(element,item){
+    jQuery(element).empty();
 
 }
 
@@ -228,6 +269,29 @@ jQuery(document).ready(function(){
                     runResponse(item,i,self);
                 });
             });
+    });
+    
+    jQuery('body').on('click','.location', function(e){
+        e.preventDefault();
+       
+        var id = jQuery(this).attr('id');
+        if (!navigator.geolocation) {
+            alert("Geolocation is not supported by this browser.");
+            return false;
+        }
+        navigator.geolocation.getCurrentPosition(function(position){
+            var latitude = position.coords.latitude;
+            var longitude = position.coords.longitude;
+            jQuery.ajax({url:pathname,data:{event:'location',uid:id,lat:latitude,long: longitude },dataType:'json',context:this})    
+                .done(function(result){
+                var self = this;
+                jQuery.each(result,function(i,item){
+                    runResponse(item,i,self);
+                });
+            });
+        });
+        
+       
     });
 });
 

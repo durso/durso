@@ -1,9 +1,10 @@
 body {
-    padding-top: 40px;
-    padding-bottom: 40px;
-    background-color: #eee;
+  padding-top: 50px;
 }
-
+.starter-template {
+  padding: 40px 15px;
+  text-align: center;
+}
 .errorMsg{
     position: fixed;
     top: 0;
@@ -11,14 +12,6 @@ body {
     width: 100%;
     z-index: 999;
 }
-
-.container {
-  padding-right: 15px;
-  padding-left: 15px;
-  margin-right: auto;
-  margin-left: auto;
-}
-
-form > button, form > div, form > select{
-    margin-top: 15px; 
+.nodisplay{
+    display:none;
 }

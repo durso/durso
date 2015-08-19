@@ -1,10 +1,13 @@
 <?php
 namespace app\model;
+use library\utils;
 /**
  * File Class
  *
  * @author durso
  */
+
+
 class file {
     public static function create($file, $buffer){
         $fp = self::open($file,"w");
@@ -36,6 +39,11 @@ class file {
         return unlink($file);
     }
     public static function isReadable($file){
+        if(utils::isUrl($file)){
+            $response = get_headers($file, 1);
+
+            return (strpos($response[0], "404") === false); 
+        }
         return is_readable($file); 
     }
     public static function open($file,$mode){

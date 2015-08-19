@@ -13,19 +13,22 @@ use library\dom\elements\components\block;
 
 
 class alert extends components{
+    private $a;
+    private $span;
+    
     public function __construct($className = "alert-danger") {
         $this->root = new block("div");
         $this->root->addClass("alert $className errorMsg");
     }
     public function create($error){
-        $a = new link("&times;");
-        $a->addClass("close");
-        $a->attr("data-dismiss","alert");
-        $this->root->addComponent($a);
-        $this->components["a"] = $a;
-        $span = new inline("span",$error);
-        $this->root->addComponent($span);
-        $this->components["span"] = $span;
+        $this->a = new link("&times;");
+        $this->a->addClass("close");
+        $this->a->attr("data-dismiss","alert");
+        $this->root->addComponent($this->a);
+        $this->components["a"][] = $this->a;
+        $this->span = new inline("span",$error);
+        $this->root->addComponent($this->span);
+        $this->components["span"][] = $this->span;
     }
     public function save(){
         return $this->root;

@@ -1,32 +1,46 @@
 <?php
 /**
- * Tree list
+ * Node
  *
  * @author durso
  */
 namespace library\tree;
-use library\dom\object;
+use library\dom\dom;
+
 
 
 abstract class node {
    
     /**
      *
-     * @var parent node  
+     * @var node parent node  
      */
     protected $parent = null;
-
+    /**
+     *
+     * @var mixed value of the node  
+     */
     protected $value;
     
-    public function __construct(object $object){
-	$this->value = $object;
+    public function __construct($value = null){
+        if(!is_null($value)){
+            $this->value = $value;
+        }
     }
+    
+    public function setValue($value){
+	$this->value = $value;
+    }
+    /*
+     * Get the value of the node
+     * @return mixed
+     */
     public function getValue(){
 	return $this->value;
     }
     /*
      * 
-     * Check if node has a parent
+     * Check if the node has parent
      * @return boolean
      */
     public function hasParent(){
@@ -35,21 +49,33 @@ abstract class node {
      /*
      * 
      * Set the node parent
-     * @param object $parent
+     * @param node $parent
      * @return void
      */
-    public function setParent(node $node){
+    public function setParent(node $node = null){
 	$this->parent = $node;
     }
      /*
      * 
-     * Get the node parent
-     * @return tree 
+     * Get the parent node
+     * @return node
      */
     public function getParent(){
        return $this->parent;
     }
-    
+     /*
+     * 
+     * Get ancestor by index
+     * Example:
+     * Given a tree with 3 levels, to get the root node from the bottom-most node $x:
+     * <code>
+     * <?php
+     *      $rootNode = $x->getAncestor(3);
+     * ?>
+     * </code> 
+     * @param int $index
+     * @return mixed
+     */
     public function getAncestor($index){
         $node = $this;
         $i = 1;
@@ -65,7 +91,12 @@ abstract class node {
         }
         return false;
     }
-
+    
+    /*
+     * 
+     * Get all ancestors from the node
+     * @return array
+     */
     public function getAncestors(){
         $ancestors = array();
         $node = $this;
@@ -81,111 +112,32 @@ abstract class node {
 
     }
 
-    
-    public function getAncestorByValue($method,$arg){
-        $node = $this;
-        while($node->hasParent()){
-            $parent = $node->getParent();
-            if($parent->getValue()->$method($arg)){
-                return $parent;
-            }
-            $node = $parent;
-        }
-        return false;
-    }
-    
-    public function getAncestorsByValue($method,$arg){
-        $list = array();
-        $node = $this;
-        while($node->hasParent()){
-            $parent = $node->getParent();
-            if($parent->getValue()->$method($arg)){
-                $list[] = $parent;
-            }
-            $node = $parent;
-        }
-        return $list;
-    }
-    
-    public function searchAncestorsProperty($method){
-        $ancestors = array();
-        $node = $this;
-        while ($node->hasParent()) {
-            $parent = $node->getParent();
-            $node = $this->buildList($parent,$ancestors);
-            if(!$node || $parent->getValue()->$method()){
-                break;
-            }
-        }
-        return $ancestors;
-    }
-    protected function buildList($parent, &$ancestors){
-        if($parent){
-            array_unshift($ancestors, $parent);
-            $node = $parent;
-            return $node;
-        }
-        return false;
-    }
-    
-    //siblings is returning the element itself
-    public function getSiblings($tagOnly = true){
-       $self = $this;
+    /*
+     * 
+     * Get node siblings
+     * @return mixed
+     */
+    public function getSiblings($self = false){
        $parent = $this->getParent();
        if($parent){
-           if(!$tagOnly){
-                $children = $parent->getChildren();
-                return utils::array_remove($siblings,$this);
-           }
-           $children = $parent->getChildren();
-           $array = array();
-           foreach($children as $child){
-                if($child->getValue()->hasTag()){
-                    if($this === $child){
-                        continue;
-                    }
-                    $array[] = $child;
-                }
-           }
-           return $array;
+            $children = $parent->getChildren();
+            if($self) return $children;
+            return utils::array_remove($children,$this);  
        }
        return false;
     }
     
-    public function getSiblingsByValue($method,$arg){
-        $children = $this->parent->getChildren();
-        $array = array();
-        foreach($children as $child){
-             $element = $child->getValue();
-             if($element->hasTag()){
-                 if($this === $child){
-                     continue;
-                 } elseif ($element->$method($arg)){
-                     $array[] = $child;
-                 }
-             }
-        }
-        return $array;
-    }
-    
+   
+    /*
+     * 
+     * Check if node has siblings
+     * @return boolean
+     */
     public function hasSiblings(){
-       return count($this->getSiblings()) > 1;
+       return count($this->getSiblings()) > 0;
     }
 
-    
-    public function getSiblingsIndex($tagOnly = true){
-        $i = 0;
-        foreach($this->parent->getChildren() as $child){
-            if($tagOnly){
-                if(!$child->getValue()->hasTag()){
-                    continue;
-                }
-            }
-            if($child === $this){
-                return $i;
-            }
-            $i++;
-        }
-        return -1;
+    public function __wakeup(){
+        $this->value->setNode($this);
     }
 }

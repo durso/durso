@@ -10,13 +10,15 @@ use library\dom\elements\paired;
 
 class input extends paired{
     
-    public function __construct($name,$type = "text",$placeholder = false, $className = "form-control") {
+    public function __construct($name = false,$type = "text",$placeholder = false, $className = "form-control") {
         parent::__construct();
         $this->attributes["type"] = $type;
         if($placeholder){
             $this->attributes["placeholder"] = $placeholder;
         }
-        $this->attributes["name"] = $name;
+        if($name){
+            $this->attributes["name"] = $name;
+        }
         $this->attributes["class"][] = $className;
         $this->tag = "input";
         $this->setId($this->tag);

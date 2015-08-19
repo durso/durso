@@ -4,18 +4,15 @@
  *
  * @author durso
  */
-namespace library\layout\elements;
-use library\layout\elements\element;
+namespace library\dom\elements\components;
+use library\dom\elements\components\intext;
 
-class label extends element{
+class label extends intext{
     
-    private $for;
     
-    public function __construct($value, $for = false) {
-        $this->value = $value;
-        $this->tag = "label";
-        $this->closeTag = true;
-        $this->attributes["for"] = $for;
+    public function __construct($value) {
+        parent::__construct("label",$value);
+        
     }
 
 }

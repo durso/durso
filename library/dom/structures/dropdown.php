@@ -12,70 +12,73 @@ use library\dom\elements\components\inline;
 
 
 class dropdown extends components{
+    private $button;
+    private $ul;
+    private $span;
     public function __construct($class="dropdown"){
         parent::__construct("div");
         $this->root->addClass($class);
     }
     public function create($label){
-        $button = new button($label);
+        $this->button = new button($label);
 
-        $button->addClass('dropdown-toggle');
+        $this->button->addClass('dropdown-toggle');
 
-        $button->attr('data-toggle','dropdown');
-        $button->attr('aria-haspopup','true');
-        $button->attr('aria-expanded','true');
-        $button->setId("button");
+        $this->button->attr('data-toggle','dropdown');
+        $this->button->attr('aria-haspopup','true');
+        $this->button->attr('aria-expanded','true');
+        $this->button->setId("button");
         
-        $icon = new inline("span");
-        $icon->addClass('caret');
-        $ul = new block("ul");
-        $ul->addClass('dropdown-menu');
-        $ul->attr('aria-labelledby',$button->getId());
-        $button->addComponent($icon);
-        $this->root->addComponent($button);
-        $this->root->addComponent($ul);
-        $this->components["button"] = $button;
-        $this->components["ul"] = $ul;
-        $this->components["span"] = $icon;
+        $this->span = new inline("span");
+        $this->span->addClass('caret');
+        $this->ul = new block("ul");
+        $this->ul->addClass('dropdown-menu');
+        $this->ul->attr('aria-labelledby',$this->button->getId());
+        $this->button->addComponent($this->span);
+        $this->root->addComponent($this->button);
+        $this->root->addComponent($this->ul);
+        $this->components["button"][] = $this->button;
+        $this->components["ul"][] = $this->ul;
+        $this->components["span"][] = $this->span;
     }
 
     public function addLink(object $component, $disabled = false){
-        assert(isset($this->components["ul"]));
+        assert(!empty($this->ul));
         $li = new inline("li");
         if($disabled){
             $li->addClass('disabled');
         }
         $li->addComponent($component);
-        $this->components["ul"]->addComponent($li);
+        $this->ul->addComponent($li);
         $this->tracker($li);
         return $li;
     }
 
     public function alignment($class){
-        assert(isset($this->components["ul"]));
-        $this->components["ul"]->addClass($class);
+        assert(!empty($this->ul));
+        $this->ul->addClass($class);
     }
 
     public function removeAlignment($class){
-        assert(isset($this->components["ul"]));
-        $this->components["ul"]->removeClass($class);
+        assert(!empty($this->ul));
+        $this->ul->removeClass($class);
     }
     public function addHeader($text){
-        assert(isset($this->components["ul"]));
+        assert(!empty($this->ul));
         $li = new inline("li");
         $li->addClass('dropdown-header');
         $text = new text($text);
         $li->addComponent($text);
-        $this->components["ul"]->addComponent($li);
+        $this->ul->addComponent($li);
         $this->tracker($li);
         return $li;
     }
     public function addDivider(){
-        assert(isset($this->components["ul"]));
+        assert(!empty($this->ul));
         $li = new inline("li");
         $li->addClass("divider");
         $li->attr("role","separator");
-        $this->components["ul"]->addComponent($li);
+        $this->ul->addComponent($li);
         $this->tracker($li);
         return $li;
     }

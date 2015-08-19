@@ -1,7 +1,9 @@
 <?php
 
 namespace library\dom;
-use library\dom\elements\html;
+use library\dom\elements\components\html;
+use library\tree\leaf;
+use library\tree\branch;
 use library\dom\object;
 use library\dom\elements\components\button;
 use library\dom\elements\components\form;
@@ -9,9 +11,11 @@ use library\dom\elements\components\group;
 use library\dom\elements\components\script;
 use library\dom\elements\components\text;
 use library\dom\elements\components\title;
-use library\dom\components\template;
-use library\dom\elements\layout;
+use library\dom\elements\components\body;
+use library\dom\elements\components\link;
+use library\dom\elements\element;
 use library\dom\elements\elementCollection;
+use library\dom\elements\components\elementFactory;
 
 /**
  * Description of dom
@@ -23,18 +27,38 @@ class dom {
     protected static $root;
     protected static $doctype = "<!DOCTYPE html>";
     protected static $tagName;
+    public static $Objecthash = array();
 
     public static function init(){
         self::$root = new html();
+        self::addElement(self::$root);
     }
-    public static function add(object $object){
-        self::$root->addComponent($object);
+    public static function add($object){
+        if(is_array($object)){
+            foreach($object as $item){
+                self::add($item);
+            }
+        } else {
+            self::$root->addComponent($object);
+            if($object instanceof element){
+                self::bft();
+            }
+        }
     }
-    public static function addObjectId(object $object){
-        if($object->hasId()){
-            self::$hash[$object->getId()] = $object;
-        }			
+    public static function addElement(element $element){
+        if($element->hasId()){
+            self::$hash[$element->getId()] = $element;
+        }
+        self::$hash[$element->getTag()][] = $element;
     }
+    
+    public static function createElement($tag){
+        return elementFactory::createByTag($tag);
+    }
+    public static function createTextNode($value){
+        return elementFactory::createText($value);
+    }
+
     public static function getElementById($id){
         return self::$hash[$id];
     }
@@ -51,17 +75,18 @@ class dom {
         return self::$root;
     }
     public static function loadData($data){
-        self::$root = $data;
+
+        self::$root = $data->getValue();
         self::bft();
     }
     public static function getElementByTagName($tag){
         $collection = new elementCollection();
-        $elements = self::$tagName[$tag];
+        $elements = self::$hash[$tag];
         $collection->addElements($elements);
         return $collection;
     }
     public static function update(){
-        $_SESSION['api_data'] = serialize(self::$root);
+        $_SESSION['api_data'] = serialize(self::$root->getNode());
     }
     public static function load(){
         $data = unserialize($_SESSION['api_data']);
@@ -70,8 +95,12 @@ class dom {
 
     
 
-    public static function bft(){
-        $list = self::$root->getNode()->getChildren();
+    public static function bft($node = false){
+        if($node){
+            $list = array($node);
+        } else {
+            $list = self::$root->getNode()->getChildren();
+        }
         $bft = array();
         while(!empty($list)){
             $node = array_shift($list);
@@ -84,11 +113,8 @@ class dom {
                 }
             }
             $bft[] = $node;
-            if($element->hasId()){
-                self::$hash[$element->getId()] = $element;
-            }
-            if($element->hasTag()){
-                self::$tagName[$element->getTag()][] = $element;
+            if($element instanceof element){
+                self::addElement($element);
             }
         }
         return $bft;

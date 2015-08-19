@@ -1,10 +1,11 @@
 <?php
 
 namespace library\mediator;
+use library\dom\object;
 use library\dom\elements\element;
+use library\dom\elements\paired;
 use library\dom\elements\elementCollection;
-use library\tree\node;
-use library\tree\branch;
+
 
 
 class nodeElement{
@@ -16,6 +17,12 @@ class nodeElement{
     public static function siblings(element $element, $selector = false){
         $children = self::getChildren($element->getNode()->getParent(), "byValue", $selector,$element->getNode());
         return self::nodeToCollection($children);
+    }
+    
+    public static function remove(element $element){
+        $node = $element->getNode();
+        $parent = $node->getParent();
+        $parent->removeChild($node);
     }
     
      public static function find(element $element, $selector){
@@ -36,6 +43,34 @@ class nodeElement{
     public static function parents($selector = false){
         $parents = self::getAncestors($element->getNode(),$selector,"byValue",false);
         return self::nodeToCollection($parents);
+    }
+    
+    public static function siblingsIndex(object $object){
+        return self::getSelfIndex($object->getNode()->getSiblings(true), $object);
+    }
+    
+    public static function hasChild(element $element){
+        return $element->getNode()->hasChild();
+    }
+    public static function getAllChildren(element $element){
+        if(self::hasChild($element))
+            return self::nodeToComponent($element->getNode()->getChildren());
+        return false;
+    }
+    public static function hasParent(object $object){
+        return $object->getNode()->hasParent();
+    }
+    public static function getParent(object $object){
+        if(self::hasParent($object)){
+            return $object->getNode()->getParent()->getValue();
+        }
+        return false;
+    }
+    public static function addChild(paired $parent,object $child){
+        $parent->getNode()->addChild($child->getNode());
+    }
+    public static function removeChild(paired $parent,object $child){
+        $parent->getNode()->removeChild($child->getNode());
     }
     
     public static function buildSelector(element $element){
@@ -80,7 +115,19 @@ class nodeElement{
         return $list;
     }
     
-
+    private static function getSelfIndex($values, object $object){
+        if($values === false){
+            return 0;
+        }
+        $count = 0;
+        foreach($values as $value){
+            $item = $value->getValue();
+            if($item === $object){
+                return $count;
+            }
+            $count++;
+        }
+    }
     
     private static function getChildren($node, $comp, $arg = false, $self = false){
         assert($node->hasChild());

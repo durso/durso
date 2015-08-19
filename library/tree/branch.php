@@ -1,6 +1,6 @@
 <?php
 /**
- * Description of node
+ * Branch is a node that may contain children nodes
  *
  * @author durso
  */
@@ -9,11 +9,14 @@ namespace library\tree;
 use library\tree\node;
 use library\utils;
 
+
+
+
 class branch extends node{
     
      /**
      *
-     * @var tree list of children nodes  
+     * @var array list of children nodes  
      */
     protected $children = null;
     
@@ -22,7 +25,7 @@ class branch extends node{
     
      /*
      * 
-     * Check if node has children
+     * Check if branch has child
      * @return boolean
      */
     public function hasChild(){
@@ -30,7 +33,7 @@ class branch extends node{
     }
     /*
      * 
-     * Get all children
+     * Get all children nodes
      * @return node
      */
     public function getChildren(){
@@ -46,8 +49,8 @@ class branch extends node{
     }
     /*
      * 
-     * Add a child to the node
-     * @param tree $child the object to be added as a child
+     * Add a child to the branch
+     * @param node $child the node object to be added as a child
      * @return void
      */
     public function addChild(node $child){
@@ -56,40 +59,15 @@ class branch extends node{
     }
      /*
      * 
-     * Remove a child from the node
-     * @param tree $child child node to be removed
+     * Remove a child from the branch
+     * @param node $child child node to be removed
      * @return void
      */
     public function removeChild(node $child){
         $this->children = utils::array_remove($this->children,$child);
-        $child->setParent(null);
+        $child->setParent();
     }
     
-    public function getChildrenElements(){
-        assert(!empty($this->children));
-        $list = array();
-        foreach($this->children as $child){
-            $element = $child->getValue();
-            if($element->hasTag()){
-                $list[] = $child;
-            }
-        }
-        return $list;
-    }
-    
-    public function getChildrenByValue($method,$args){
-        assert(!empty($this->children));
-        $list = array();
-        foreach($this->children as $child){
-            $element = $child->getValue();
-            if($element->hasTag()){
-                if($element->$method($args)){
-                    $list[] = $child;
-                }
-            }
-        }
-        return $list;
-    }
-    
+
     
 }

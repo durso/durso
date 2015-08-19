@@ -16,7 +16,7 @@ class void extends element{
         if($this->isRendered){
             return "";
         }
-        $this->openTag();
-        return $this->html;
+        $html = $this->openTag();
+        return $html;
     }
 }

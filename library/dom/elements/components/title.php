@@ -6,31 +6,17 @@
  * @author durso
  */
 namespace library\dom\elements\components;
-use library\dom\elements\paired;
 use library\dom\object;
-use library\dom\elements\components\text;
+use library\dom\elements\components\intext;
 
-class title extends paired{
+class title extends intext{
 
     
-    public function __construct($value) {
-        parent::__construct();
-        $text = new text($value);
-        $this->addComponent($text);
-        $this->tag = "title";
+    public function __construct($value = false) {
+        parent::__construct("title",$value);
         
     }
-    public function addComponent(object $component){
-        if($this->node->hasChild()){
-            $this->removeComponent($this->node->getChild(0));
-            $this->node->addChild($component);
-        } else {
-            parent::addComponent($component);
-        }
-    }
-    public function setValue($value){
-        $this->node->getChild(0)->getValue()->setValue($value);
-    }
+   
 
 
 }

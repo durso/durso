@@ -5,7 +5,7 @@
  *
  * @author durso
  */
-namespace library\dom\elements;
+namespace library\dom\elements\components;
 use library\dom\elements\paired;
 
 class html extends paired{
