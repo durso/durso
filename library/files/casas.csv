@@ -1,5 +1,6 @@
-location,bedrooms,bathrooms,price
-stepaside,2,1,210.000
-stepaside,2,2,250.000
-sandyford,3,2,350.000
-sandyford,4,2,500.000
+year,price
+2010,210000
+2011,216000
+2012,220000
+2013,215000
+2014,230000

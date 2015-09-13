@@ -6,7 +6,7 @@
  * @author durso
  */
 namespace library\dom\elements\components;
-use library\dom\elements\components\head;
+
 
 class elementFactory {
     public static function createByTag($tag){
@@ -14,11 +14,13 @@ class elementFactory {
         switch($tag){
             case "i":
             case "strong":    
-            case "li":     
+            case "li": 
+            case "em":    
             case "b": $element = new inline($tag);
                         break;
             case "label": $element = new label();
                         break;  
+            case "hr":
             case "br":
             case "embed":
             case "param":        

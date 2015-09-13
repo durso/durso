@@ -14,7 +14,7 @@ use library\dom\javascript;
 
 
 class listener {
-    private $components = array();
+    protected $components = array();
     
     public function __construct(element $component,$event,$callback,$args){
         $this->register($component,$event,$callback,$args);

@@ -7,6 +7,7 @@
  */
 namespace library\dom\elements;
 use library\dom\object;
+use library\dom\dom;
 use library\utils;
 use library\event\listener;
 use library\event\event;
@@ -16,7 +17,7 @@ use library\mediator\nodeElement;
 
 abstract class element extends object{
     
-    protected $listener = array();
+
     /**
      *
      * @var array All attributes and properties given to an element
@@ -227,16 +228,15 @@ abstract class element extends object{
     public function addEventListener($event, $callback,$args = array()){
         $this->setId($this->tag);
         $this->addClass($event);
-        $this->listener[$event] = new listener($this,$event,$callback,$args);
+        $listener = new listener($this,$event,$callback,$args);
+        dom::addEventListener($listener, $this->attributes["id"],$event);
     }
     public function removeEventListener($event){
         $this->removeClass($event);
-        unset($this->listener[$event]);
+        dom::removeEventListener($this->attributes["id"],$event);
     }
     
-    public function fire(event $event){
-        $this->listener[$event->getType()]->fire($event);
-    }
+    
     
     public function is($selector){
         if(preg_match("/(^([\w]+)\.([\w+\-*]+))/", $selector)){

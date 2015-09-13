@@ -5,10 +5,10 @@
  * @author durso
  */
 namespace library\dom\elements\components;
-use library\dom\elements\paired;
+use library\dom\elements\void;
 
 
-class input extends paired{
+class input extends void{
     
     public function __construct($name = false,$type = "text",$placeholder = false, $className = "form-control") {
         parent::__construct();

@@ -1,0 +1,9 @@
+var @name@ = new google.visualization.DataTable();
+@column@
+@name@.addRows(@rows@);
+
+var options = @options@;
+
+// Instantiate and draw our chart, passing in some options.
+var chart@i@ = new google.visualization.@type@(document.getElementById('@id@'));
+chart@i@.draw(@name@, options);

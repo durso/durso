@@ -34,8 +34,8 @@ class event {
         return $this->type;
     }
     public function trigger(){
-        $this->getSource()->fire($this);
-        
+        $listener = dom::getEventListener($this->source->getId(),$this->type);
+        $listener->fire($this);
     }
     
     public static function isEvent($event){

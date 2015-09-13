@@ -42,9 +42,21 @@ abstract class paired extends element{
         nodeElement::removeChild($this, $component);
     }
     
+    public function removeChildren(){
+        $children = $this->getChildren();
+        foreach($children as $child){
+            $this->removeComponent($child);
+        }
+    }
+    
     public function remove(){
         $this->updateJS('remove');
         nodeElement::remove($this);
+    }
+    
+    public function innerHTML(object $value){
+        $this->removeChildren();
+        $this->addComponent($value);
     }
     
     public function clear($component = false){
