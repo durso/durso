@@ -19,13 +19,11 @@ class buttonGroup extends components{
             $div = new buttonGroup();
             $button = $div->addButton($value);
             $this->root->addComponent($div->save());
-            $this->tracker($div->save());
         } else {
             $button = new button($value);
             $button->attr("role","group");
             $this->root->addComponent($button);
         }
-        $this->tracker($button);
         return $button;
     }
     public function size($classSize){

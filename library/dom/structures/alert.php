@@ -25,14 +25,8 @@ class alert extends components{
         $this->a->addClass("close");
         $this->a->attr("data-dismiss","alert");
         $this->root->addComponent($this->a);
-        $this->components["a"][] = $this->a;
         $this->span = new inline("span",$error);
         $this->root->addComponent($this->span);
-        $this->components["span"][] = $this->span;
     }
-    public function save(){
-        return $this->root;
-    }
-    
     
 }

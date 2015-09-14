@@ -37,9 +37,6 @@ class dropdown extends components{
         $this->button->addComponent($this->span);
         $this->root->addComponent($this->button);
         $this->root->addComponent($this->ul);
-        $this->components["button"][] = $this->button;
-        $this->components["ul"][] = $this->ul;
-        $this->components["span"][] = $this->span;
     }
 
     public function addLink(object $component, $disabled = false){
@@ -50,7 +47,6 @@ class dropdown extends components{
         }
         $li->addComponent($component);
         $this->ul->addComponent($li);
-        $this->tracker($li);
         return $li;
     }
 
@@ -70,7 +66,6 @@ class dropdown extends components{
         $text = new text($text);
         $li->addComponent($text);
         $this->ul->addComponent($li);
-        $this->tracker($li);
         return $li;
     }
     public function addDivider(){
@@ -79,13 +74,10 @@ class dropdown extends components{
         $li->addClass("divider");
         $li->attr("role","separator");
         $this->ul->addComponent($li);
-        $this->tracker($li);
         return $li;
     }
     public function grouping(){
         $this->root->attr("role","group");
     }
-    public function save(){
-        return $this->root;
-    }
+
 }

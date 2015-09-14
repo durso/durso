@@ -22,7 +22,7 @@ class inputGroup extends components{
     }
  
     public function create($name,$text, $spanPosition = "left", $inputType = "text"){
-        assert(!isset($this->components["input"]));
+        assert(!empty($this->input));
         if($inputType == 'text'){
             return $this->text($name,$text,$spanPosition);
         }
@@ -38,8 +38,6 @@ class inputGroup extends components{
             $span1 = $this->span($text[0]);
             $span2 = $this->span($text[1]);
             $list = array($span1,$this->input,$span2);
-            $this->components["span"][] = $span1;
-            $this->components["span"][] = $span2;
         } else {
             $span = $this->span($text);
             $span->setId("span");
@@ -48,8 +46,6 @@ class inputGroup extends components{
             if($position == 'right'){
                 $list = array_reverse($list);
             } 
-            $this->components["input"][] = $this->input;
-            $this->components["span"][] = $span;
         }
         foreach($list as $item){
             $this->root->addComponent($item);
@@ -63,10 +59,7 @@ class inputGroup extends components{
     }
     
     public function createCheckBox(){
-        assert(!isset($this->components["input"]));
-    }
-    public function save(){
-        return $this->root;
+        assert(!isset($this->input));
     }
  
 }

@@ -15,8 +15,6 @@
 namespace library\dom\structures;
 use library\dom\structures\components;
 use library\dom\elements\components\elementFactory;
-use library\dom\elements\element;
-use library\dom\elements\paired;
 use library\dom\dom;
 use app\model\file;
 

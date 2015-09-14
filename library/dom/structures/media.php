@@ -47,16 +47,9 @@ class media extends components{
         } else {
             $this->root->addComponent($body);
             $this->root->addComponent($div);
-        }
-        $this->components["div"][] = $div;
-        $this->components["div"][] = $body;
-        $this->components["img"][] = $img;
-        $this->components["a"][] = $a;         
-        
+        }      
     }
 
-    public function save(){
-        return $this->root;
-    }
+    
  
 }

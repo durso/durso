@@ -34,7 +34,7 @@ class branch extends node{
     /*
      * 
      * Get all children nodes
-     * @return node
+     * @return array
      */
     public function getChildren(){
         return $this->children;

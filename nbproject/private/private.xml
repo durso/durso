@@ -3,12 +3,9 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-            <file>file:/home/durso/NetBeansProjects/localhost/library/files/gols.csv</file>
-            <file>file:/home/durso/NetBeansProjects/localhost/app/view/templates/index.html</file>
             <file>file:/home/durso/NetBeansProjects/localhost/library/dom/dom.php</file>
-            <file>file:/home/durso/NetBeansProjects/localhost/library/dom/chart/gChartTemplate.txt</file>
-            <file>file:/home/durso/NetBeansProjects/localhost/library/dom/chart/gChartFunctionTemplate.txt</file>
-            <file>file:/home/durso/NetBeansProjects/localhost/library/dom/chart/gChart.php</file>
+            <file>file:/home/durso/NetBeansProjects/localhost/library/event/event.php</file>
+            <file>file:/home/durso/NetBeansProjects/localhost/app/view/templates/index2.html</file>
             <file>file:/home/durso/NetBeansProjects/localhost/app/controller/index.php</file>
         </group>
     </open-files>

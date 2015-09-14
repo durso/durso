@@ -91,6 +91,7 @@ class dom {
     }
     public static function update(){
         $page =  self::$root->render();
+        $_SESSION['api_data'] = array();
         $_SESSION['api_data']['page'] = $page;
         $_SESSION['api_data']['listeners'] = serialize(self::$listeners);
         return $page;
