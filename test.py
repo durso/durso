@@ -72,6 +72,49 @@ except ImportError as exc:  # pragma: no cover - informative error for users
     ) from exc
 
 
+def find_clusters(
+        graph,
+        min_cluster_size: int = 10,
+        cluster_selection_method: str = "eom",
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Minimal fallback that mimics :func:`umap.umap_.find_clusters`.
+
+        The official helper disappeared from newer releases of UMAP, so this
+        replacement extracts connected components from the fuzzy simplicial set
+        graph.  Components smaller than ``min_cluster_size`` are labelled ``-1``
+        (noise).  Cluster probabilities are not available in this lightweight
+        approximation, therefore a vector of ones is returned to preserve the
+        expected API.
+
+        Parameters
+        ----------
+        graph:
+            Fuzzy simplicial set returned by UMAP.  Dense arrays are converted
+            to :class:`scipy.sparse.csr_matrix` as needed.
+        min_cluster_size:
+            Minimum number of points per cluster before it is considered noise.
+        cluster_selection_method:
+            Present for API compatibility.  The fallback does not differentiate
+            between ``"eom"`` and ``"leaf"`` selection.
+        """
+
+        if graph is None:
+            raise ValueError("graph must be provided for clustering.")
+        if not isinstance(graph, csr_matrix):
+            graph = csr_matrix(graph)
+        sym_graph = graph.maximum(graph.T)
+        _, labels = connected_components(sym_graph, directed=False)
+        labels = np.asarray(labels, dtype=int)
+        min_size = max(1, int(min_cluster_size))
+        counts = np.bincount(labels, minlength=labels.max() + 1)
+        for component, size in enumerate(counts):
+            if size < min_size:
+                labels[labels == component] = -1
+        probabilities = np.ones(labels.shape[0], dtype=np.float32)
+        return labels, probabilities
+
+
+
 ArrayLike = np.ndarray
 
 
