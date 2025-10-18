@@ -14,6 +14,11 @@ workflows.  The main capabilities are:
   optionally guided by feature-wise distributional schemas that adjust both the
   reconstruction loss and the sampling process.
 
+In addition, the implementation incorporates the regularization token described
+in the original T-JEPA paper. The learnable token is optimised jointly with the
+encoder and predictor to stabilise the joint-embedding objective and can be
+scaled through the ``regularization_weight`` hyper-parameter.
+
 Typical usage::
 
     >>> import pandas as pd
@@ -91,7 +96,9 @@ except ImportError as exc:  # pragma: no cover - informative error for users
 
 try:  # pragma: no cover - depending on umap version this may fail
     from umap.umap_ import find_clusters  # type: ignore[attr-defined]
+    _USING_FALLBACK_FIND_CLUSTERS = False
 except Exception:  # pragma: no cover - provide a functional fallback
+    _USING_FALLBACK_FIND_CLUSTERS = True
     try:
         from scipy.sparse import csr_matrix
         from scipy.sparse.csgraph import connected_components
@@ -100,31 +107,94 @@ except Exception:  # pragma: no cover - provide a functional fallback
             "The bundled fallback for `find_clusters` requires SciPy. Install it with `pip install scipy`."
         ) from exc
 
+    try:  # pragma: no cover - optional, improves clustering quality if available
+        import hdbscan  # type: ignore
+    except ImportError:  # pragma: no cover - gracefully degrade without hdbscan
+        hdbscan = None
+
     def find_clusters(
         graph,
         min_cluster_size: int = 10,
         cluster_selection_method: str = "eom",
+        embedding: Optional[np.ndarray] = None,
+        data: Optional[np.ndarray] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Minimal fallback that mimics :func:`umap.umap_.find_clusters`.
+        """Fallback approximation to :func:`umap.umap_.find_clusters`.
 
-        The official helper disappeared from newer releases of UMAP, so this
-        replacement extracts connected components from the fuzzy simplicial set
-        graph.  Components smaller than ``min_cluster_size`` are labelled ``-1``
-        (noise).  Cluster probabilities are not available in this lightweight
-        approximation, therefore a vector of ones is returned to preserve the
-        expected API.
-
-        Parameters
-        ----------
-        graph:
-            Fuzzy simplicial set returned by UMAP.  Dense arrays are converted
-            to :class:`scipy.sparse.csr_matrix` as needed.
-        min_cluster_size:
-            Minimum number of points per cluster before it is considered noise.
-        cluster_selection_method:
-            Present for API compatibility.  The fallback does not differentiate
-            between ``"eom"`` and ``"leaf"`` selection.
+        The helper disappeared from newer releases of UMAP, so this replacement
+        attempts progressively richer clustering strategies before finally
+        falling back to simple connected components.  When a low-dimensional
+        embedding or the original feature array is supplied, HDBSCAN or DBSCAN
+        is applied to recover multi-cluster structure.
         """
+
+        feature_array: Optional[np.ndarray] = None
+        if embedding is not None:
+            feature_array = np.asarray(embedding, dtype=np.float32)
+        elif data is not None:
+            feature_array = np.asarray(data, dtype=np.float32)
+
+        if (
+            hdbscan is not None
+            and feature_array is not None
+            and feature_array.shape[0] >= 2
+        ):
+            clusterer = hdbscan.HDBSCAN(
+                min_cluster_size=max(2, int(min_cluster_size)),
+                cluster_selection_method=cluster_selection_method,
+                metric="euclidean",
+            )
+            labels = clusterer.fit_predict(feature_array)
+            probs = getattr(clusterer, "probabilities_", None)
+            probabilities = (
+                np.asarray(probs, dtype=np.float32)
+                if probs is not None
+                else np.ones(labels.shape[0], dtype=np.float32)
+            )
+            return np.asarray(labels, dtype=int), probabilities
+
+        if feature_array is not None and feature_array.shape[0] >= 2:
+            try:
+                from sklearn.cluster import DBSCAN
+                from sklearn.neighbors import NearestNeighbors
+            except ImportError as exc:  # pragma: no cover - propagate informative error
+                raise ImportError(
+                    "The fallback clustering path requires scikit-learn's clustering utilities."
+                ) from exc
+
+            n_neighbors = min(
+                max(2, int(min_cluster_size)), feature_array.shape[0] - 1
+            )
+            if n_neighbors >= 1:
+                nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1)
+                nbrs.fit(feature_array)
+                distances = nbrs.kneighbors(feature_array)[0][:, 1:]
+                kth = np.sort(distances[:, -1])
+                percentiles = [30, 50, 70, 90]
+                candidate_eps = []
+                for perc in percentiles:
+                    value = np.percentile(kth, perc)
+                    if np.isfinite(value) and value > 0:
+                        candidate_eps.append(float(value))
+                best_labels: Optional[np.ndarray] = None
+                best_cluster_count = -1
+                for eps in candidate_eps:
+                    clustering = DBSCAN(
+                        eps=float(eps),
+                        min_samples=max(2, int(min_cluster_size)),
+                    ).fit(feature_array)
+                    labels = clustering.labels_
+                    cluster_ids = set(labels.tolist())
+                    cluster_count = len(cluster_ids - {-1})
+                    if cluster_count > best_cluster_count:
+                        best_cluster_count = cluster_count
+                        best_labels = labels
+                    if cluster_count > 1:
+                        break
+                if best_labels is not None:
+                    labels = np.asarray(best_labels, dtype=int)
+                    probabilities = np.ones(labels.shape[0], dtype=np.float32)
+                    return labels, probabilities
 
         if graph is None:
             raise ValueError("graph must be provided for clustering.")
@@ -226,6 +296,7 @@ class _TrainingResult:
     encoder: nn.Module
     predictor: nn.Module
     decoder: nn.Module
+    reg_token: torch.Tensor
     history: list[Dict[str, float]]
     val_loss: Optional[float]
 
@@ -275,6 +346,7 @@ class TJEPA:
         feature_dropout: float = 0.15,
         recon_weight: float = 1.0,
         latent_noise: float = 0.25,
+        regularization_weight: float = 1.0,
         optuna_trials: int = 10,
         optuna_timeout: Optional[int] = None,
         tune_val_split: float = 0.2,
@@ -324,6 +396,7 @@ class TJEPA:
             "feature_dropout": feature_dropout,
             "recon_weight": recon_weight,
             "latent_noise": latent_noise,
+            "regularization_weight": regularization_weight,
             "umap_n_neighbors": umap_n_neighbors,
             "umap_min_dist": umap_min_dist,
             "umap_n_components": umap_n_components,
@@ -336,6 +409,7 @@ class TJEPA:
         self.encoder: Optional[nn.Module] = None
         self.predictor: Optional[nn.Module] = None
         self.decoder: Optional[nn.Module] = None
+        self.reg_token: Optional[torch.Tensor] = None
         self.training_history: list[Dict[str, float]] = []
         self.training_embeddings_: Optional[ArrayLike] = None
         self.training_umap_: Optional[ArrayLike] = None
@@ -367,6 +441,7 @@ class TJEPA:
 
         _set_global_seed(self.random_state)
         self._rng = np.random.default_rng(self.random_state)
+        self.reg_token = None
         numeric = _validate_dataframe(df)
         if numeric.shape[0] < 2:
             raise ValueError("At least two samples are required to train TJEPA.")
@@ -403,6 +478,7 @@ class TJEPA:
         self.encoder = result.encoder
         self.predictor = result.predictor
         self.decoder = result.decoder
+        self.reg_token = result.reg_token
         self.training_history = result.history
 
         self.training_embeddings_ = self._encode(self._scaled_data)
@@ -989,8 +1065,9 @@ class TJEPA:
         predictor: nn.Module,
         decoder: nn.Module,
         params: Dict[str, float | int],
+        reg_token: torch.Tensor,
         augment: bool = True,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         if augment:
             view_one = self._augment_batch(scaled_batch, params)
             view_two = self._augment_batch(scaled_batch, params)
@@ -1005,6 +1082,7 @@ class TJEPA:
         loss_jepa = self._byol_loss(pred_one, z_two) + self._byol_loss(pred_two, z_one)
 
         recon_weight = float(params["recon_weight"])
+        regularization_weight = float(params.get("regularization_weight", 0.0))
         if recon_weight > 0:
             recon_one = decoder(z_one)
             recon_two = decoder(z_two)
@@ -1018,8 +1096,27 @@ class TJEPA:
         else:
             loss_recon = torch.tensor(0.0, device=scaled_batch.device)
 
-        total_loss = loss_jepa + recon_weight * loss_recon
-        return total_loss, loss_jepa.detach(), loss_recon.detach()
+        if regularization_weight > 0:
+            reg_token_expanded = reg_token.expand(scaled_batch.shape[0], -1)
+            pred_reg_one = predictor(reg_token_expanded)
+            pred_reg_two = predictor(reg_token_expanded)
+            loss_reg = self._byol_loss(pred_reg_one, z_two) + self._byol_loss(
+                pred_reg_two, z_one
+            )
+        else:
+            loss_reg = torch.tensor(0.0, device=scaled_batch.device)
+
+        total_loss = (
+            loss_jepa
+            + recon_weight * loss_recon
+            + regularization_weight * loss_reg
+        )
+        return (
+            total_loss,
+            loss_jepa.detach(),
+            loss_recon.detach(),
+            loss_reg.detach(),
+        )
 
     def _run_training(
         self,
@@ -1041,9 +1138,13 @@ class TJEPA:
             drop_last=False,
         )
         encoder, predictor, decoder = self._build_components(scaled_array.shape[1], params)
+        reg_token = nn.Parameter(
+            torch.zeros(1, int(params["embedding_dim"]), device=self.device)
+        )
         optim_params = list(encoder.parameters())
         optim_params += list(predictor.parameters())
         optim_params += list(decoder.parameters())
+        optim_params.append(reg_token)
         optimizer = torch.optim.AdamW(
             optim_params,
             lr=float(params["lr"]),
@@ -1058,13 +1159,14 @@ class TJEPA:
             total_loss = 0.0
             total_jepa = 0.0
             total_recon = 0.0
+            total_reg = 0.0
             total_samples = 0
             for scaled_batch, original_batch, mask_batch in loader:
                 scaled_batch = scaled_batch.to(self.device, non_blocking=True)
                 original_batch = original_batch.to(self.device, non_blocking=True)
                 mask_batch = mask_batch.to(self.device, non_blocking=True)
                 optimizer.zero_grad(set_to_none=True)
-                loss, loss_jepa, loss_recon = self._compute_loss(
+                loss, loss_jepa, loss_recon, loss_reg = self._compute_loss(
                     scaled_batch,
                     original_batch,
                     mask_batch,
@@ -1072,6 +1174,7 @@ class TJEPA:
                     predictor,
                     decoder,
                     params,
+                    reg_token,
                     augment=True,
                 )
                 loss.backward()
@@ -1082,6 +1185,7 @@ class TJEPA:
                 total_loss += float(loss.item()) * batch_size_now
                 total_jepa += float(loss_jepa.item()) * batch_size_now
                 total_recon += float(loss_recon.item()) * batch_size_now
+                total_reg += float(loss_reg.item()) * batch_size_now
                 total_samples += batch_size_now
 
             if total_samples > 0:
@@ -1091,6 +1195,7 @@ class TJEPA:
                         "loss": total_loss / total_samples,
                         "jepa_loss": total_jepa / total_samples,
                         "recon_loss": total_recon / total_samples,
+                        "reg_loss": total_reg / total_samples,
                     }
                 )
 
@@ -1109,12 +1214,20 @@ class TJEPA:
                 predictor,
                 decoder,
                 params,
+                reg_token,
             )
 
         encoder.eval()
         predictor.eval()
         decoder.eval()
-        return _TrainingResult(encoder, predictor, decoder, history, val_loss)
+        return _TrainingResult(
+            encoder,
+            predictor,
+            decoder,
+            reg_token.detach().cpu(),
+            history,
+            val_loss,
+        )
 
     def _evaluate_loss(
         self,
@@ -1125,6 +1238,7 @@ class TJEPA:
         predictor: nn.Module,
         decoder: nn.Module,
         params: Dict[str, float | int],
+        reg_token: torch.Tensor,
     ) -> float:
         dataset = _TabularDataset(scaled_array, original_array, mask_array)
         batch_size = max(1, min(int(params["batch_size"]), len(dataset)))
@@ -1140,7 +1254,7 @@ class TJEPA:
                 scaled_batch = scaled_batch.to(self.device, non_blocking=True)
                 original_batch = original_batch.to(self.device, non_blocking=True)
                 mask_batch = mask_batch.to(self.device, non_blocking=True)
-                loss, _, _ = self._compute_loss(
+                loss, _, _, _ = self._compute_loss(
                     scaled_batch,
                     original_batch,
                     mask_batch,
@@ -1148,6 +1262,7 @@ class TJEPA:
                     predictor,
                     decoder,
                     params,
+                    reg_token,
                     augment=False,
                 )
                 batch_size_now = scaled_batch.shape[0]
@@ -1181,6 +1296,7 @@ class TJEPA:
         encoder = result.encoder
         predictor = result.predictor
         decoder = result.decoder
+        reg_token = result.reg_token.to(self.device)
         val_loss = result.val_loss
         if val_loss is None:
             val_loss = self._evaluate_loss(
@@ -1191,6 +1307,7 @@ class TJEPA:
                 predictor,
                 decoder,
                 params,
+                reg_token,
             )
 
         with torch.no_grad():
@@ -1208,11 +1325,20 @@ class TJEPA:
         low_dim = reducer.fit_transform(embeddings)
         labels = getattr(reducer, "labels_", None)
         if labels is None:
-            clusters = find_clusters(
-                reducer.graph_,
-                min_cluster_size=self.min_cluster_size,
-                cluster_selection_method=self.cluster_selection_method,
-            )
+            if _USING_FALLBACK_FIND_CLUSTERS:
+                clusters = find_clusters(
+                    reducer.graph_,
+                    min_cluster_size=self.min_cluster_size,
+                    cluster_selection_method=self.cluster_selection_method,
+                    embedding=low_dim,
+                    data=embeddings,
+                )
+            else:
+                clusters = find_clusters(
+                    reducer.graph_,
+                    min_cluster_size=self.min_cluster_size,
+                    cluster_selection_method=self.cluster_selection_method,
+                )
             if isinstance(clusters, tuple):
                 labels = clusters[0]
             else:
@@ -1289,6 +1415,9 @@ class TJEPA:
                 "recon_weight", 0.1, 5.0, log=True
             )
             trial_params["latent_noise"] = trial.suggest_float("latent_noise", 0.05, 0.8)
+            trial_params["regularization_weight"] = trial.suggest_float(
+                "regularization_weight", 0.0, 3.0
+            )
             trial_params["batch_size"] = trial.suggest_categorical(
                 "batch_size", [32, 64, 128, 256]
             )
@@ -1466,11 +1595,20 @@ class TJEPA:
         labels = getattr(reducer, "labels_", None)
         probabilities = getattr(reducer, "cluster_probabilities_", None)
         if labels is None:
-            clusters = find_clusters(
-                reducer.graph_,
-                min_cluster_size=self.min_cluster_size,
-                cluster_selection_method=self.cluster_selection_method,
-            )
+            if _USING_FALLBACK_FIND_CLUSTERS:
+                clusters = find_clusters(
+                    reducer.graph_,
+                    min_cluster_size=self.min_cluster_size,
+                    cluster_selection_method=self.cluster_selection_method,
+                    embedding=low_dim,
+                    data=embeddings,
+                )
+            else:
+                clusters = find_clusters(
+                    reducer.graph_,
+                    min_cluster_size=self.min_cluster_size,
+                    cluster_selection_method=self.cluster_selection_method,
+                )
             if isinstance(clusters, tuple):
                 labels = clusters[0]
                 if probabilities is None and len(clusters) > 1:
