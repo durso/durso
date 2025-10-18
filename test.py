@@ -34,6 +34,14 @@ Typical usage::
 The resulting dataframe combines the original and synthetic samples, annotated
 with pseudo labels derived from UMAP clustering.
 
+Use the ``max_clusters`` argument when instantiating :class:`TJEPA` to cap the
+number of pseudo-label groups produced by the clustering head.
+
+When working with bounded Gaussian-like features (for example, values that are
+non-negative by construction) provide ``min``/``max`` entries in the schema to
+enforce the support during sampling.  If omitted, the implementation clamps the
+generated values to the range observed in the training data.
+
 A categorical schema can be expressed with either integer-coded or one-hot
 encoded columns.  For example::
 
@@ -57,6 +65,7 @@ import math
 import random
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -312,6 +321,8 @@ class _DistributionSpec:
     df: Optional[float] = None
     xm: Optional[float] = None
     encoding: str = "scalar"
+    min_value: Optional[float] = None
+    max_value: Optional[float] = None
 
 
 class TJEPA:
@@ -357,12 +368,15 @@ class TJEPA:
         umap_n_components: int = 2,
         min_cluster_size: int = 10,
         cluster_selection_method: str = "eom",
+        max_clusters: Optional[int] = None,
         synthetic_multiplier: float = 1.0,
         synthetic_temperature: float = 1.0,
         random_state: Optional[int] = None,
         device: Optional[str] = None,
         feature_schema: Optional[Dict[str, Dict[str, Any]]] = None,
     ) -> None:
+        if max_clusters is not None and max_clusters <= 0:
+            raise ValueError("max_clusters must be a positive integer or None")
         if synthetic_multiplier < 0:
             raise ValueError("synthetic_multiplier must be non-negative")
         if synthetic_temperature <= 0:
@@ -377,6 +391,7 @@ class TJEPA:
         self.silhouette_weight = silhouette_weight
         self.min_cluster_size = max(2, min_cluster_size)
         self.cluster_selection_method = cluster_selection_method
+        self.max_clusters = int(max_clusters) if max_clusters is not None else None
         self.synthetic_multiplier = synthetic_multiplier
         self.synthetic_temperature = synthetic_temperature
         self.random_state = random_state
@@ -668,6 +683,8 @@ class TJEPA:
                     column_names=tuple(columns),
                     num_classes=param_count,
                     encoding="one_hot",
+                    min_value=None,
+                    max_value=None,
                 )
                 feature_specs.append(spec)
                 total_params += param_count
@@ -682,6 +699,24 @@ class TJEPA:
             if dist_name not in self._SUPPORTED_DISTRIBUTIONS:
                 raise ValueError(
                     f"Unsupported distribution '{dist_name}' for column '{col}'."
+                )
+
+            column_values = df[col].to_numpy(dtype=np.float64)
+            finite_mask = np.isfinite(column_values)
+            finite_values = column_values[finite_mask]
+            observed_min = float(np.min(finite_values)) if finite_values.size else None
+            observed_max = float(np.max(finite_values)) if finite_values.size else None
+            cfg_min = cfg.get("min")
+            cfg_max = cfg.get("max")
+            min_value = float(cfg_min) if cfg_min is not None else observed_min
+            max_value = float(cfg_max) if cfg_max is not None else observed_max
+            if (
+                min_value is not None
+                and max_value is not None
+                and min_value > max_value
+            ):
+                raise ValueError(
+                    f"Column '{col}' received inconsistent bounds: min ({min_value}) > max ({max_value})."
                 )
 
             param_count: int
@@ -737,6 +772,8 @@ class TJEPA:
                 df=cfg.get("df"),
                 xm=cfg.get("xm"),
                 encoding=encoding,
+                min_value=min_value,
+                max_value=max_value,
             )
             feature_specs.append(spec)
             total_params += param_count
@@ -885,6 +922,11 @@ class TJEPA:
                         rows = np.arange(values.shape[0])[valid]
                         one_hot[rows, max_idx[valid]] = 1
                     processed.loc[:, cols] = one_hot.astype(np.int64)
+            elif spec.name == "gaussian":
+                col = cols[0]
+                lower = spec.min_value
+                upper = spec.max_value
+                processed[col] = processed[col].clip(lower=lower, upper=upper)
             elif spec.name == "beta":
                 col = cols[0]
                 processed[col] = processed[col].clip(lower=1e-6, upper=1 - 1e-6)
@@ -1533,6 +1575,10 @@ class TJEPA:
                 std = torch.sqrt(var)
                 dist = torch.distributions.Normal(mean, std)
                 draw = dist.sample()
+                if spec.min_value is not None or spec.max_value is not None:
+                    lower = spec.min_value if spec.min_value is not None else -float("inf")
+                    upper = spec.max_value if spec.max_value is not None else float("inf")
+                    draw = draw.clamp(min=lower, max=upper)
                 output[:, spec.column_indices[0]] = draw
             elif spec.name == "bernoulli":
                 dist = torch.distributions.Bernoulli(logits=column_params[:, 0])
@@ -1581,6 +1627,81 @@ class TJEPA:
                 raise ValueError(f"Unsupported distribution {spec.name}")
         return output.cpu().numpy()
 
+    def _enforce_max_clusters(
+        self,
+        embedding: ArrayLike,
+        labels: ArrayLike,
+        probabilities: Optional[ArrayLike],
+    ) -> Tuple[ArrayLike, Optional[ArrayLike]]:
+        if self.max_clusters is None or self.max_clusters <= 0:
+            return labels, probabilities
+
+        mask = labels >= 0
+        active_labels = np.unique(labels[mask])
+        if active_labels.size <= self.max_clusters:
+            return labels, probabilities
+
+        try:
+            from sklearn.cluster import AgglomerativeClustering
+        except Exception:  # pragma: no cover - already a dependency but stay safe
+            warnings.warn(
+                "Agglomerative clustering unavailable; trimming clusters by size instead.",
+                RuntimeWarning,
+            )
+            return self._trim_clusters_by_size(labels, probabilities)
+
+        try:
+            clusterer = AgglomerativeClustering(n_clusters=self.max_clusters)
+            reassigned = clusterer.fit_predict(embedding[mask]).astype(int, copy=False)
+            new_labels = labels.copy()
+            new_labels[mask] = reassigned
+            new_labels = self._reindex_clusters(new_labels)
+            if probabilities is not None:
+                new_prob = np.zeros_like(probabilities, dtype=np.float32)
+                new_prob[mask] = 1.0
+                if probabilities.shape == new_prob.shape:
+                    new_prob[~mask] = probabilities[~mask]
+                return new_labels, new_prob
+            return new_labels, None
+        except Exception:
+            warnings.warn(
+                "Agglomerative clustering failed; trimming clusters by size instead.",
+                RuntimeWarning,
+            )
+            return self._trim_clusters_by_size(labels, probabilities)
+
+    def _trim_clusters_by_size(
+        self, labels: ArrayLike, probabilities: Optional[ArrayLike]
+    ) -> Tuple[ArrayLike, Optional[ArrayLike]]:
+        mask = labels >= 0
+        if mask.sum() == 0 or self.max_clusters is None or self.max_clusters <= 0:
+            return labels, probabilities
+
+        uniques = np.unique(labels[mask])
+        counts = [(lbl, int((labels == lbl).sum())) for lbl in uniques]
+        counts.sort(key=lambda item: item[1], reverse=True)
+        new_labels = labels.copy()
+        drop_mask = np.isin(labels, [lbl for lbl, _ in counts[self.max_clusters :]])
+        new_labels[drop_mask] = -1
+        new_labels = self._reindex_clusters(new_labels)
+        if probabilities is not None:
+            new_prob = probabilities.astype(np.float32, copy=True)
+            new_prob[drop_mask] = 0.0
+            return new_labels, new_prob
+        return new_labels, None
+
+    @staticmethod
+    def _reindex_clusters(labels: ArrayLike) -> ArrayLike:
+        labels = labels.astype(int, copy=True)
+        mask = labels >= 0
+        if mask.sum() == 0:
+            return labels
+        unique = np.unique(labels[mask])
+        mapping = {old: idx for idx, old in enumerate(sorted(unique))}
+        for old, new in mapping.items():
+            labels[labels == old] = new
+        return labels
+
     def _cluster_embeddings(
         self, embeddings: ArrayLike
     ) -> Tuple[umap.UMAP, ArrayLike, ArrayLike, Optional[ArrayLike]]:
@@ -1621,7 +1742,8 @@ class TJEPA:
             if probabilities is None
             else np.asarray(probabilities, dtype=np.float32)
         )
+        (
+            labels_array,
+            probabilities_array,
+        ) = self._enforce_max_clusters(low_dim, labels_array, probabilities_array)
         return reducer, low_dim, labels_array, probabilities_array
-
-
-__all__ = ["TJEPA"]
