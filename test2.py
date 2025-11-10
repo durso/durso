@@ -1,41 +1,41 @@
-def entropy_regularized_xgboost_loss(alpha=0.1):
+def entropy_regularized_xgboost_loss_clean(alpha=0.1):
+    """
+    EDHD-FG-XGBoost with correct chain rule
     
+    Returns derivatives w.r.t. raw margin f (not probabilities p)
+    """
     def objective(preds, dtrain):
-        """
-        Calculate gradient and Hessian for XGBoost tree construction
-        XGBoost uses these to build optimal splits
-        """
         labels = dtrain.get_label()
+        f = preds  # Raw margin from XGBoost trees
         
-        # Clip predictions to avoid log(0)
-        preds = np.clip(preds, 1e-15, 1 - 1e-15)
+        # Clip for numerical stability
+        f = np.clip(f, -500, 500)
         
-        # ===== PART 1: Binary Cross-Entropy (Primary Loss) =====
-        # L_BCE = -[y*log(p) + (1-y)*log(1-p)]
-        bce = -(labels * np.log(preds) + (1 - labels) * np.log(1 - preds))
+        # Transform to probabilities
+        p = 1 / (1 + np.exp(-f))
+        p = np.clip(p, 1e-15, 1 - 1e-15)
         
-        # Gradient: dL_BCE/dp = p - y
-        grad_bce = preds - labels
+        # Loss components
+        bce = -(labels * np.log(p) + (1 - labels) * np.log(1 - p))
+        entropy = -(p * np.log(p) + (1 - p) * np.log(1 - p))
         
-        # Hessian: d²L_BCE/dp² = p(1-p)
-        hess_bce = preds * (1 - preds)
+        # Sigmoid derivative (needed for chain rule)
+        p_prime = p * (1 - p)
         
-        # ===== PART 2: Entropy Regularization Term =====
-        # H(p) = -[p*log(p) + (1-p)*log(1-p)]
-        # Higher entropy (p closer to 0.5) = less confident
-        entropy = -(preds * np.log(preds) + (1 - preds) * np.log(1 - preds))
+        # Gradients w.r.t. probabilities
+        grad_bce_p = p - labels
+        grad_entropy_p = alpha * (np.log(1 - p) - np.log(p))
+        grad_entropy_p = np.nan_to_num(grad_entropy_p, nan=0.0)
         
-        # Gradient of entropy term: d(-α*H)/dp = α * [log(p) - log(1-p)]
-        # (Simplified: log(1-p) - log(p))
-        grad_entropy = alpha * (np.log(1 - preds) - np.log(preds))
+        # CHAIN RULE: Convert to derivatives w.r.t. raw margin
+        grad = (grad_bce_p + grad_entropy_p) * p_prime
         
-        # Hessian of entropy term: d²(-α*H)/dp² = α / [p(1-p)]
-        hess_entropy = alpha / (preds * (1 - preds))
+        # Hessians (simplified)
+        hess = (p_prime ** 2) * (1 / (p * (1 - p))) + \
+               2 * p_prime * (1 - 2*p) * (grad_bce_p + grad_entropy_p)
         
-        # ===== TOTAL LOSS =====
-        # Combine both components
-        grad = grad_bce + grad_entropy
-        hess = hess_bce + hess_entropy
+        # Safety
+        hess = np.maximum(hess, 1e-8)
         
         return grad, hess
     
